@@ -50,9 +50,7 @@ def workspace_page(conn_id: int, request: Request, repository: RepositoryDep) ->
 
 
 @router.get("/c/{conn_id}/query", response_class=HTMLResponse)
-def workspace_query_page(
-    conn_id: int, request: Request, repository: RepositoryDep
-) -> HTMLResponse:
+def workspace_query_page(conn_id: int, request: Request, repository: RepositoryDep) -> HTMLResponse:
     """GET /c/{conn_id}/query → same query workspace (alias)."""
     conn = repository.get_connection(conn_id)
     if conn is None:

@@ -26,8 +26,7 @@ def _cmd_start(args: argparse.Namespace) -> None:
 
     if not _port_available(host, port):
         print(
-            f"Error: port {port} on {host} is already in use. "
-            f"Choose another port with --port.",
+            f"Error: port {port} on {host} is already in use. Choose another port with --port.",
             file=sys.stderr,
         )
         sys.exit(1)

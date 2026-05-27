@@ -178,16 +178,12 @@ class Repository:
             "last_used_at": None,
         }
         with self._engine.begin() as conn:
-            result = conn.execute(
-                sa.insert(connection_profile_table).values(**row_data)
-            )
+            result = conn.execute(sa.insert(connection_profile_table).values(**row_data))
             pk = result.inserted_primary_key
             assert pk is not None
             new_id: int = pk[0]
             row = conn.execute(
-                sa.select(connection_profile_table).where(
-                    connection_profile_table.c.id == new_id
-                )
+                sa.select(connection_profile_table).where(connection_profile_table.c.id == new_id)
             ).one()
         return _row_to_connection(row)
 
@@ -202,9 +198,7 @@ class Repository:
         """
         with self._engine.connect() as conn:
             row = conn.execute(
-                sa.select(connection_profile_table).where(
-                    connection_profile_table.c.id == conn_id
-                )
+                sa.select(connection_profile_table).where(connection_profile_table.c.id == conn_id)
             ).one_or_none()
         if row is None:
             return None
@@ -225,9 +219,7 @@ class Repository:
             ).fetchall()
         return [_row_to_connection(r) for r in rows]
 
-    def update_connection(
-        self, conn_id: int, data: ConnectionUpdate
-    ) -> ConnectionProfile | None:
+    def update_connection(self, conn_id: int, data: ConnectionUpdate) -> ConnectionProfile | None:
         """Partially update a connection profile (only fields set in data).
 
         Args:
@@ -254,9 +246,7 @@ class Repository:
             if result.rowcount == 0:
                 return None
             row = conn.execute(
-                sa.select(connection_profile_table).where(
-                    connection_profile_table.c.id == conn_id
-                )
+                sa.select(connection_profile_table).where(connection_profile_table.c.id == conn_id)
             ).one()
         return _row_to_connection(row)
 
@@ -271,9 +261,7 @@ class Repository:
         """
         with self._engine.begin() as conn:
             result = conn.execute(
-                sa.delete(connection_profile_table).where(
-                    connection_profile_table.c.id == conn_id
-                )
+                sa.delete(connection_profile_table).where(connection_profile_table.c.id == conn_id)
             )
         return result.rowcount > 0
 
@@ -311,22 +299,16 @@ class Repository:
             "error_message": entry.error_message,
         }
         with self._engine.begin() as conn:
-            result = conn.execute(
-                sa.insert(query_history_table).values(**row_data)
-            )
+            result = conn.execute(sa.insert(query_history_table).values(**row_data))
             pk = result.inserted_primary_key
             assert pk is not None
             new_id: int = pk[0]
             row = conn.execute(
-                sa.select(query_history_table).where(
-                    query_history_table.c.id == new_id
-                )
+                sa.select(query_history_table).where(query_history_table.c.id == new_id)
             ).one()
         return _row_to_history(row)
 
-    def list_history(
-        self, connection_id: int, limit: int = 50
-    ) -> list[QueryHistory]:
+    def list_history(self, connection_id: int, limit: int = 50) -> list[QueryHistory]:
         """Return the most recent query history for a connection.
 
         Args:
@@ -375,16 +357,12 @@ class Repository:
             "updated_at": now,
         }
         with self._engine.begin() as conn:
-            result = conn.execute(
-                sa.insert(saved_query_table).values(**row_data)
-            )
+            result = conn.execute(sa.insert(saved_query_table).values(**row_data))
             pk = result.inserted_primary_key
             assert pk is not None
             new_id: int = pk[0]
             row = conn.execute(
-                sa.select(saved_query_table).where(
-                    saved_query_table.c.id == new_id
-                )
+                sa.select(saved_query_table).where(saved_query_table.c.id == new_id)
             ).one()
         return _row_to_saved_query(row)
 
@@ -399,17 +377,13 @@ class Repository:
         """
         with self._engine.connect() as conn:
             row = conn.execute(
-                sa.select(saved_query_table).where(
-                    saved_query_table.c.id == query_id
-                )
+                sa.select(saved_query_table).where(saved_query_table.c.id == query_id)
             ).one_or_none()
         if row is None:
             return None
         return _row_to_saved_query(row)
 
-    def list_saved_queries(
-        self, connection_id: int | None = None
-    ) -> list[SavedQuery]:
+    def list_saved_queries(self, connection_id: int | None = None) -> list[SavedQuery]:
         """Return saved queries filtered by connection visibility.
 
         When connection_id is None, return only global queries (connection_id IS NULL).
@@ -463,9 +437,7 @@ class Repository:
             if result.rowcount == 0:
                 return None
             row = conn.execute(
-                sa.select(saved_query_table).where(
-                    saved_query_table.c.id == query_id
-                )
+                sa.select(saved_query_table).where(saved_query_table.c.id == query_id)
             ).one()
         return _row_to_saved_query(row)
 
@@ -480,9 +452,7 @@ class Repository:
         """
         with self._engine.begin() as conn:
             result = conn.execute(
-                sa.delete(saved_query_table).where(
-                    saved_query_table.c.id == query_id
-                )
+                sa.delete(saved_query_table).where(saved_query_table.c.id == query_id)
             )
         return result.rowcount > 0
 

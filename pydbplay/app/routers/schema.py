@@ -62,9 +62,7 @@ def list_tables(
     table_rows = [
         {
             "info": t,
-            "select_sql": (
-                f"SELECT * FROM {adapter.quote_identifier(t.name)} LIMIT 100"
-            ),
+            "select_sql": (f"SELECT * FROM {adapter.quote_identifier(t.name)} LIMIT 100"),
         }
         for t in tables
     ]
