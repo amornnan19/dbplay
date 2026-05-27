@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 
 from pydbplay.adapters.base import DBAdapter, UnsupportedEngineError
-from pydbplay.core.connection_manager import ConnectionManager
+from pydbplay.adapters.mysql import MySQLAdapter
+from pydbplay.core.connection_manager import ConnectionManager, _create_adapter
+from pydbplay.db.models import ConnectionProfile
 from pydbplay.db.repository import Repository, make_engine, run_migrations
 from pydbplay.schemas.connection import ConnectionCreate
 
@@ -126,14 +128,43 @@ def test_get_adapter_missing_profile_raises(tmp_path: Path) -> None:
         cm.get_adapter(9999)
 
 
-def test_get_adapter_mysql_raises_unsupported(tmp_path: Path) -> None:
-    """get_adapter raises UnsupportedEngineError for a mysql profile."""
+def test_get_adapter_mysql_builds_mysql_adapter(tmp_path: Path) -> None:
+    """get_adapter returns a MySQLAdapter for a mysql profile (engine is lazy — no DB needed)."""
     repo = _make_repo(tmp_path)
     pid = _insert_mysql_profile(repo)
     cm = ConnectionManager(repo)
 
+    adapter = cm.get_adapter(pid)
+    assert isinstance(adapter, MySQLAdapter)
+    cm.close_all()
+
+
+def test_create_adapter_unknown_engine_raises_unsupported() -> None:
+    """_create_adapter raises UnsupportedEngineError for an unknown engine string.
+
+    Uses model_construct to bypass Literal validation so an invalid engine value
+    can be passed to exercise the defensive else branch.
+    """
+    from datetime import datetime
+
+    fake_profile = ConnectionProfile.model_construct(
+        id=1,
+        name="Fake",
+        engine="duckdb",  # not a valid Literal — bypasses pydantic validation
+        host="localhost",
+        port=1234,
+        database="mydb",
+        username="user",
+        password_encrypted=None,
+        ssl_mode=None,
+        read_only=False,
+        color=None,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        last_used_at=None,
+    )
     with pytest.raises(UnsupportedEngineError):
-        cm.get_adapter(pid)
+        _create_adapter(fake_profile)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +195,13 @@ def test_test_connection_invalid_sqlite_path(tmp_path: Path) -> None:
     assert result.message  # non-empty error text
 
 
-def test_test_connection_mysql_returns_not_supported(tmp_path: Path) -> None:
-    """test_connection for mysql returns ok=False with an informative message."""
+def test_test_connection_mysql_returns_false_on_bad_host(tmp_path: Path) -> None:
+    """test_connection for mysql returns ok=False when the host is unreachable.
+
+    MySQL is now a supported engine, so the adapter is constructed and
+    test_connection() is attempted.  A non-existent host causes a connection
+    error that is caught and returned as ok=False with a descriptive message.
+    """
     repo = _make_repo(tmp_path)
     cm = ConnectionManager(repo)
 
@@ -173,8 +209,8 @@ def test_test_connection_mysql_returns_not_supported(tmp_path: Path) -> None:
         ConnectionCreate(
             name="x",
             engine="mysql",
-            host="localhost",
-            port=3306,
+            host="127.0.0.1",
+            port=19999,  # nothing listening here
             database="mydb",
             username="admin",
         )

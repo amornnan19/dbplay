@@ -158,8 +158,12 @@ def test_test_connection_invalid_sqlite_path(tmp_path: Path) -> None:
     assert "Failed" in resp.text or "fail" in resp.text.lower() or "False" in resp.text
 
 
-def test_test_connection_mysql_unsupported(tmp_path: Path) -> None:
-    """POST /api/connections/test for mysql returns a fail (not supported yet)."""
+def test_test_connection_mysql_fails_on_bad_host(tmp_path: Path) -> None:
+    """POST /api/connections/test for mysql returns a fail when host is unreachable.
+
+    MySQL is now a supported engine; test_connection() is attempted and fails
+    with a connection error (not an "unsupported engine" message).
+    """
     client = _make_client(tmp_path)
 
     with client:
@@ -168,16 +172,14 @@ def test_test_connection_mysql_unsupported(tmp_path: Path) -> None:
             data={
                 "name": "x",
                 "engine": "mysql",
-                "host": "localhost",
-                "port": "3306",
+                "host": "127.0.0.1",
+                "port": "19999",  # nothing listening here
                 "database": "mydb",
                 "username": "admin",
             },
         )
     assert resp.status_code == 200
-    # ConnectionManager.test_connection returns ok=False with "engine not yet supported"
-    assert "Failed" in resp.text
-    assert "not yet supported" in resp.text
+    assert "Failed" in resp.text or "fail" in resp.text.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -310,8 +312,13 @@ def test_connect_missing_profile_returns_404(tmp_path: Path) -> None:
     assert resp.status_code == 404
 
 
-def test_connect_mysql_returns_422(tmp_path: Path) -> None:
-    """POST /connect for a mysql profile returns 422 (UnsupportedEngineError)."""
+def test_connect_mysql_builds_adapter_and_redirects(tmp_path: Path) -> None:
+    """POST /connect for a mysql profile returns 200 with HX-Redirect.
+
+    MySQL is now a supported engine.  The adapter is built lazily (no real DB
+    connection until the first query), so /connect succeeds and returns an
+    HX-Redirect header pointing to the workspace.
+    """
     client = _make_client(tmp_path)
 
     with client:
@@ -333,7 +340,8 @@ def test_connect_mysql_returns_422(tmp_path: Path) -> None:
         conn_id = repo.list_connections()[0].id
 
         resp = client.post(f"/api/connections/{conn_id}/connect")
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert resp.headers.get("HX-Redirect") == f"/c/{conn_id}"
 
 
 # ---------------------------------------------------------------------------

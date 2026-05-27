@@ -79,15 +79,20 @@ def _register_sqlite_connection(client: TestClient, db_path: Path) -> int:
 
 
 def _register_mysql_connection(client: TestClient) -> int:
-    """POST a mysql connection (engine unsupported) and return its id."""
+    """POST a mysql connection pointing at a guaranteed-dead port and return its id.
+
+    Port 19999 on 127.0.0.1 is always connection-refused (~5 ms), making the
+    failure deterministic regardless of the test environment — matching the
+    approach used in test_routers_connections.py for the same reason.
+    """
     client.post(
         "/api/connections",
         data={
             "name": "MySQL Connection",
             "engine": "mysql",
             "database": "mydb",
-            "host": "localhost",
-            "port": "3306",
+            "host": "127.0.0.1",
+            "port": "19999",
             "username": "mysqluser",
         },
     )
@@ -179,15 +184,22 @@ def test_list_tables_missing_conn_returns_404(tmp_path: Path) -> None:
     assert resp.status_code == 404
 
 
-def test_list_tables_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /tables for a mysql connection returns 422 (UnsupportedEngineError)."""
+def test_list_tables_missing_engine_still_returns_error(tmp_path: Path) -> None:
+    """GET /tables for a mysql connection returns an error (DB unreachable).
+
+    MySQL is now a supported engine so UnsupportedEngineError is not raised.
+    The adapter is built lazily but the actual query fails when no real DB
+    is reachable, which the router converts to a non-200 error response.
+    Note: testcontainers integration tests cover the happy path for MySQL.
+    """
     client = _make_client(tmp_path)
 
     with client:
         conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/tables")
 
-    assert resp.status_code == 422
+    # Connection-refused on 127.0.0.1:19999 → AdapterError → global handler → 400
+    assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
@@ -263,31 +275,33 @@ def test_describe_table_missing_conn_returns_404(tmp_path: Path) -> None:
     assert resp.status_code == 404
 
 
-def test_describe_table_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /tables/sometable for a mysql connection returns 422."""
+def test_describe_table_missing_db_returns_error(tmp_path: Path) -> None:
+    """GET /tables/sometable for a mysql connection returns an error when DB is unreachable."""
     client = _make_client(tmp_path)
 
     with client:
         conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/tables/sometable")
 
-    assert resp.status_code == 422
+    # Connection-refused on 127.0.0.1:19999 → AdapterError → global handler → 400
+    assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
-# GET /api/c/{conn_id}/schemas — unsupported engine returns 422
+# GET /api/c/{conn_id}/schemas — unreachable DB returns 400
 # ---------------------------------------------------------------------------
 
 
-def test_list_schemas_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /schemas for a mysql connection returns 422."""
+def test_list_schemas_missing_db_returns_error(tmp_path: Path) -> None:
+    """GET /schemas for a mysql connection returns an error when DB is unreachable."""
     client = _make_client(tmp_path)
 
     with client:
         conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/schemas")
 
-    assert resp.status_code == 422
+    # Connection-refused on 127.0.0.1:19999 → AdapterError → global handler → 400
+    assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------

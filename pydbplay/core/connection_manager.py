@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from pydbplay.adapters.base import DBAdapter, UnsupportedEngineError
+from pydbplay.adapters.mysql import MySQLAdapter
 from pydbplay.adapters.postgres import PostgresAdapter
 from pydbplay.adapters.sqlite import SQLiteAdapter
 from pydbplay.db.models import ConnectionProfile
@@ -46,6 +47,17 @@ def _create_adapter(profile: ConnectionProfile) -> DBAdapter:
             ssl_mode=profile.ssl_mode,
             read_only=profile.read_only,
         )
+    if profile.engine == "mysql":
+        # TODO(phase-crypto): decrypt profile.password_encrypted before use
+        return MySQLAdapter(
+            host=profile.host or "localhost",
+            port=profile.port or 3306,
+            database=profile.database,
+            username=profile.username or "",
+            password=profile.password_encrypted,
+            ssl_mode=profile.ssl_mode,
+            read_only=profile.read_only,
+        )
     # TODO(phase-pool): tune per-engine pool_size on the adapter's Engine
     raise UnsupportedEngineError(f"Engine '{profile.engine}' is not yet supported")
 
@@ -71,6 +83,16 @@ def _create_adapter_from_create(data: ConnectionCreate) -> DBAdapter:
         return PostgresAdapter(
             host=data.host or "localhost",
             port=data.port or 5432,
+            database=data.database,
+            username=data.username or "",
+            password=data.password,
+            ssl_mode=data.ssl_mode,
+            read_only=data.read_only,
+        )
+    if data.engine == "mysql":
+        return MySQLAdapter(
+            host=data.host or "localhost",
+            port=data.port or 3306,
             database=data.database,
             username=data.username or "",
             password=data.password,
