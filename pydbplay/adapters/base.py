@@ -165,7 +165,7 @@ class DBAdapter(ABC):
             Quoted identifier string.
 
         Raises:
-            ValueError: When *name* is not in *known*.
+            UnknownIdentifierError: When *name* is not in *known*.
         """
 
     @abstractmethod
