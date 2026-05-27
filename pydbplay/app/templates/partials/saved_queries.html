@@ -1,0 +1,33 @@
+{% if saved %}
+<ul class="divide-y divide-gray-100 text-xs">
+  {% for sq in saved %}
+  <li class="px-2 py-1.5 flex items-start gap-2 hover:bg-gray-50 group"
+      data-sql="{{ sq.sql }}"
+      onclick="window.__loadHistorySQL && window.__loadHistorySQL(this.dataset.sql)"
+      style="cursor: pointer;">
+    <div class="min-w-0 flex-1">
+      <div class="font-medium text-gray-700 truncate" title="{{ sq.name }}">{{ sq.name }}</div>
+      <div class="font-mono text-gray-400 truncate mt-0.5" title="{{ sq.sql }}">
+        {{ sq.sql[:60] }}{% if sq.sql|length > 60 %}…{% endif %}
+      </div>
+    </div>
+    <button
+      type="button"
+      class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity mt-0.5"
+      title="Delete saved query"
+      hx-delete="/api/c/{{ conn_id }}/saved-queries/{{ sq.id }}"
+      hx-confirm="Delete saved query &quot;{{ sq.name }}&quot;?"
+      hx-target="#saved-queries-panel"
+      hx-swap="innerHTML"
+      onclick="event.stopPropagation()"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-xs text-gray-400 px-2 py-2">No saved queries.</p>
+{% endif %}

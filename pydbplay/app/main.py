@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from pydbplay.app.exceptions import register_exception_handlers
 from pydbplay.app.middleware import LocalhostSecurityMiddleware
-from pydbplay.app.routers import connections, export, pages, query, rows, schema
+from pydbplay.app.routers import connections, export, pages, query, rows, saved, schema
 from pydbplay.config import get_settings
 from pydbplay.core.connection_manager import ConnectionManager
 from pydbplay.core.exporter import Exporter
@@ -84,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(query.router)
     app.include_router(rows.router)
     app.include_router(export.router)
+    app.include_router(saved.router)
 
     @app.get("/health", include_in_schema=True, tags=["health"])
     def health_check() -> JSONResponse:
