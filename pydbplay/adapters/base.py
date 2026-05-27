@@ -27,6 +27,10 @@ class UnknownIdentifierError(AdapterError):
     """Raised when an identifier is not in the known-safe whitelist."""
 
 
+class UnsupportedEngineError(AdapterError):
+    """Raised when an engine type has no adapter implementation yet."""
+
+
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
@@ -170,4 +174,12 @@ class DBAdapter(ABC):
 
         Returns:
             Ordered list of PK column name strings.
+        """
+
+    @abstractmethod
+    def dispose(self) -> None:
+        """Release all connections held by the underlying engine pool.
+
+        Should be called when the adapter is evicted from the cache or the
+        application is shutting down.
         """

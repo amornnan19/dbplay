@@ -58,3 +58,7 @@ class PostgresAdapter(DBAdapter):
     def get_pk_columns(self, table: str, schema: str | None = None) -> list[str]:
         # TODO(phase-1): implement — query pg_constraint
         raise NotImplementedError
+
+    def dispose(self) -> None:
+        # TODO(phase-1): implement — close connection pool
+        raise NotImplementedError

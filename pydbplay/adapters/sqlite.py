@@ -366,6 +366,14 @@ class SQLiteAdapter(DBAdapter):
                 yield [dict(zip(col_names, row, strict=False)) for row in batch]
 
     # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    def dispose(self) -> None:
+        """Dispose the SQLAlchemy engine, closing all pooled connections."""
+        self._engine.dispose()
+
+    # ------------------------------------------------------------------
     # Identifier safety
     # ------------------------------------------------------------------
 

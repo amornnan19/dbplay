@@ -50,6 +50,13 @@ class SavedQueryUpdate(BaseModel):
     description: str | None = None
 
 
+class ConnectionTestResult(BaseModel):
+    """Result of a connection test (transient, not persisted)."""
+
+    ok: bool
+    message: str
+
+
 class ConnectionResponse(BaseModel):
     """Response schema for a single connection profile (no password fields)."""
 

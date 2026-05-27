@@ -54,3 +54,7 @@ class MySQLAdapter(DBAdapter):
     def get_pk_columns(self, table: str, schema: str | None = None) -> list[str]:
         # TODO(phase-1): implement — information_schema.TABLE_CONSTRAINTS
         raise NotImplementedError
+
+    def dispose(self) -> None:
+        # TODO(phase-1): implement — close connection pool
+        raise NotImplementedError
