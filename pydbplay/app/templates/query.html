@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Query — pydbplay{% endblock %}
+
+{% block head %}
+<!-- CodeMirror 6 (ESM from CDN) -->
+<script type="module" src="/static/js/editor.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-64px)] gap-4">
+
+  <!-- Sidebar: table list -->
+  <aside class="w-56 flex-shrink-0 bg-white border border-gray-200 rounded overflow-y-auto">
+    <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      Tables
+    </div>
+    <!-- TODO(phase-1): HTMX lazy-load table list -->
+    <div
+      hx-get="/api/c/{{ conn_id }}/tables"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+      class="px-3 py-2 text-sm text-gray-400"
+    >
+      Loading…
+    </div>
+  </aside>
+
+  <!-- Editor + result panel -->
+  <div class="flex-1 flex flex-col gap-4 min-w-0">
+
+    <!-- SQL editor -->
+    <div class="bg-white border border-gray-200 rounded p-3">
+      <form
+        id="query-form"
+        hx-post="/api/c/{{ conn_id }}/query"
+        hx-target="#result-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#query-loading"
+        onsubmit="document.getElementById('sql-hidden').value = document.getElementById('sql-editor').__getValue();"
+      >
+        <div id="sql-editor" class="border border-gray-200 rounded mb-2 font-mono text-sm"></div>
+        <input type="hidden" name="sql" id="sql-hidden" />
+
+        <div class="flex items-center gap-2">
+          <button
+            type="submit"
+            class="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+          >
+            Run <kbd class="ml-1 text-xs opacity-70">⌘↵</kbd>
+          </button>
+          <span id="query-loading" class="htmx-indicator text-sm text-gray-400">Running…</span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Result panel -->
+    <div id="result-panel" class="bg-white border border-gray-200 rounded p-3 flex-1 overflow-auto">
+      <p class="text-sm text-gray-400">Run a query to see results.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  // TODO(phase-1): pass dialect from connection profile
+  window.initEditor?.("sql-editor", "{{ dialect|default('postgres') }}", "");
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+/* pydbplay app stylesheet
+ *
+ * Dev: Tailwind is loaded via CDN in templates/base.html.
+ * Production: Replace CDN with compiled Tailwind CSS output here.
+ * See SPEC §8 Phase packaging — run `tailwindcss -i app.css -o app.css --minify`
+ */
+
+/* Custom overrides / component styles go here */
+
+.htmx-indicator {
+  display: none;
+}
+.htmx-request .htmx-indicator {
+  display: inline;
+}

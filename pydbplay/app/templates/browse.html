@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Browse {{ table }} — pydbplay{% endblock %}
+
+{% block content %}
+<div class="max-w-full">
+  <h1 class="text-xl font-semibold mb-4">
+    {{ conn_name|default("Connection") }} / {{ table }}
+  </h1>
+
+  <!-- TODO(phase-2): implement paginated browse view with HTMX + inline edit -->
+  <div
+    id="browse-table"
+    hx-get="/api/c/{{ conn_id }}/rows/{{ table }}"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+    class="text-sm text-gray-400"
+  >
+    Loading rows…
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Connections — pydbplay{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">Connections</h1>
+    <!-- TODO(phase-1): Wire "New Connection" button to a modal / form -->
+    <button
+      class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+      disabled
+    >
+      + New Connection
+    </button>
+  </div>
+
+  <!-- Connection list — swapped by HTMX once phase-1 is implemented -->
+  <div id="connection-list">
+    {% if connections %}
+      <ul class="divide-y divide-gray-200 bg-white rounded border border-gray-200">
+        {% for conn in connections %}
+        <li class="flex items-center gap-3 px-4 py-3">
+          {% if conn.color %}
+          <span class="w-2 h-2 rounded-full" style="background:{{ conn.color }}"></span>
+          {% endif %}
+          <span class="font-medium">{{ conn.name }}</span>
+          <span class="text-xs text-gray-500 ml-auto">{{ conn.engine }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-500 text-sm">
+        No connections yet. Add one to get started.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

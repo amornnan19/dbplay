@@ -1,0 +1,61 @@
+[project]
+name = "pydbplay"
+version = "0.1.0"
+description = "Local-first DB query playground — a lightweight TablePlus alternative running on localhost"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=48.0.0",
+    "fastapi>=0.136.3",
+    "jinja2>=3.1.6",
+    "keyring>=25.7.0",
+    "psycopg[binary]>=3.3.4",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "pymysql>=1.2.0",
+    "sqlalchemy>=2.0.50",
+    "sqlglot>=30.8.0",
+    "uvicorn[standard]>=0.48.0",
+]
+
+[project.scripts]
+pydbplay = "pydbplay.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.1.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.14",
+    "testcontainers>=4.14.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+disable_error_code = ["override", "return"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests requiring Docker / external services (deselect with -m 'not integration')",
+]

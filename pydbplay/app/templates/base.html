@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" x-data>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}pydbplay{% endblock %}</title>
+
+  <!-- Tailwind CSS (CDN — dev only; vendor + pin at packaging) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- App stylesheet -->
+  <link rel="stylesheet" href="/static/css/app.css" />
+
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased min-h-screen">
+
+  <!-- Top nav -->
+  <header class="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4">
+    <a href="/connections" class="font-semibold text-indigo-600 hover:text-indigo-800">
+      pydbplay
+    </a>
+    <!-- TODO(phase-4): Tab bar for multi-connection -->
+  </header>
+
+  <!-- Main content -->
+  <main class="p-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- App JS -->
+  <script type="module" src="/static/js/htmx-ext.js"></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
