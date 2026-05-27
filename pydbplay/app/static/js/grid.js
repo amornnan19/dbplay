@@ -110,18 +110,16 @@
       display.textContent = "…";
     }
 
-    const formData = new FormData();
-    formData.append("column", col);
-    formData.append("value", newValue);
-    for (const [k, v] of Object.entries(pkParams)) {
-      formData.append(k, v);
-    }
+    // htmx.ajax expects `values` as a PLAIN OBJECT, not a FormData instance
+    // (a FormData has no own-enumerable props, so HTMX serializes an empty body).
+    const values = { column: col, value: newValue };
+    Object.assign(values, pkParams);
 
     htmx.ajax("PATCH", "/api/c/" + connId + "/rows/" + tableName, {
       source: row,
       target: row,
       swap: "outerHTML",
-      values: formData,
+      values: values,
     });
   }
 

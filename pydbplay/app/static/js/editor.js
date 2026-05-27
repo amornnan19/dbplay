@@ -10,10 +10,11 @@
 //
 // TODO(phase-autocomplete): Wire server-side autocomplete completion source.
 
-import { EditorView, basicSetup } from "https://esm.sh/codemirror@6";
+// NOTE: import the `codemirror` meta-package UNVERSIONED — `codemirror@6` on
+// esm.sh mis-resolves to a default-only function build; the unversioned URL
+// exposes the real CM6 named exports (EditorView, basicSetup, minimalSetup).
+import { EditorView, basicSetup } from "https://esm.sh/codemirror";
 import { sql, PostgreSQL, MySQL, SQLite } from "https://esm.sh/@codemirror/lang-sql@6";
-import { keymap } from "https://esm.sh/@codemirror/view@6";
-import { defaultKeymap } from "https://esm.sh/@codemirror/commands@6";
 
 const DIALECTS = {
   postgres: PostgreSQL,
@@ -52,24 +53,25 @@ window.initEditor = function (dialect, initialValue) {
         "&": { height: "200px" },
         ".cm-scroller": { overflow: "auto" },
       }),
-      // Mod-Enter (⌘+Enter / Ctrl+Enter) → submit the parent form
-      keymap.of([
-        {
-          key: "Mod-Enter",
-          run: () => {
+      // Mod-Enter (⌘+Enter / Ctrl+Enter) → submit the parent form.
+      // Uses EditorView.domEventHandlers (not a keymap extension) so we avoid a
+      // separate @codemirror/view import and any CDN module-dedup mismatch.
+      EditorView.domEventHandlers({
+        keydown: (event, editorView) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
             const form = parent.closest("form");
             if (form) {
-              // Sync hidden input before submit
               const hidden = document.getElementById("sql-hidden");
               if (hidden) {
-                hidden.value = view.state.doc.toString();
+                hidden.value = editorView.state.doc.toString();
               }
               form.requestSubmit();
             }
             return true;
-          },
+          }
+          return false;
         },
-      ]),
+      }),
     ],
     parent,
   });

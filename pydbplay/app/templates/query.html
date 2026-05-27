@@ -103,13 +103,15 @@
   const editorEl = document.getElementById('sql-editor');
   const dialect = editorEl ? (editorEl.dataset.dialect || 'sqlite') : 'sqlite';
 
-  // Copy CodeMirror doc into hidden input before HTMX submits the form.
+  // Inject the CodeMirror doc as the `sql` parameter before HTMX sends the request.
+  // NOTE: setting the hidden input's DOM value here is TOO LATE — HTMX has already
+  // serialized the form into evt.detail.parameters by the time configRequest fires.
+  // We must mutate evt.detail.parameters directly.
   document.body.addEventListener('htmx:configRequest', function (evt) {
     const form = document.getElementById('query-form');
     if (form && evt.detail.elt && (evt.detail.elt === form || form.contains(evt.detail.elt))) {
-      const hidden = document.getElementById('sql-hidden');
-      if (hidden && editorEl && typeof editorEl.__getValue === 'function') {
-        hidden.value = editorEl.__getValue();
+      if (editorEl && typeof editorEl.__getValue === 'function') {
+        evt.detail.parameters['sql'] = editorEl.__getValue();
       }
     }
   });
