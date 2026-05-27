@@ -38,6 +38,18 @@ class ConnectionUpdate(BaseModel):
     color: str | None = None
 
 
+class SavedQueryUpdate(BaseModel):
+    """Payload for partially updating a saved query.
+
+    All fields optional — only provided fields are updated.
+    Pass ``description=None`` explicitly to clear the column.
+    """
+
+    name: str | None = Field(None, min_length=1, max_length=200)
+    sql: str | None = None
+    description: str | None = None
+
+
 class ConnectionResponse(BaseModel):
     """Response schema for a single connection profile (no password fields)."""
 

@@ -4,12 +4,15 @@ Uses SQLAlchemy Core (Table + insert()/select()) — NOT the ORM.
 Migration version tracked via SQLite PRAGMA user_version (no Alembic).
 """
 
-# TODO(phase-1): Implement CRUD methods.
-
+import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 import sqlalchemy as sa
-from sqlalchemy import Connection, MetaData, Table, create_engine, text
+from sqlalchemy import Connection, MetaData, Table, create_engine, event, text
+
+from pydbplay.db.models import ConnectionProfile, QueryHistory, SavedQuery
+from pydbplay.schemas.connection import ConnectionCreate, ConnectionUpdate, SavedQueryUpdate
 
 # ---------------------------------------------------------------------------
 # Metadata & Table definitions
@@ -112,140 +115,384 @@ def run_migrations(conn: Connection) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _row_to_connection(row: sa.engine.Row[tuple[object, ...]]) -> ConnectionProfile:
+    """Map a SQLAlchemy Core Row to a ConnectionProfile model."""
+    return ConnectionProfile.model_validate(dict(row._mapping))
+
+
+def _row_to_history(row: sa.engine.Row[tuple[object, ...]]) -> QueryHistory:
+    """Map a SQLAlchemy Core Row to a QueryHistory model."""
+    return QueryHistory.model_validate(dict(row._mapping))
+
+
+def _row_to_saved_query(row: sa.engine.Row[tuple[object, ...]]) -> SavedQuery:
+    """Map a SQLAlchemy Core Row to a SavedQuery model."""
+    return SavedQuery.model_validate(dict(row._mapping))
+
+
+def _now() -> datetime:
+    """Return the current UTC datetime (timezone-naive, stored as ISO-8601 TEXT)."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class Repository:
     """CRUD operations for app-internal SQLite via SQLAlchemy Core.
 
-    All methods accept an open SQLAlchemy Core *Connection* so the caller
-    controls transaction boundaries.
+    Holds a SQLAlchemy Engine; opens a connection per operation.
+    Write operations use ``engine.begin()`` (auto commit/rollback).
+    Read operations use ``engine.connect()``.
+
+    This class must NOT import FastAPI.
     """
+
+    def __init__(self, engine: sa.Engine) -> None:
+        self._engine = engine
 
     # ── ConnectionProfile ────────────────────────────────────────────────
 
-    def list_connections(self, conn: Connection) -> list[dict]:
-        """Return all connection profiles as plain dicts.
+    def create_connection(self, data: ConnectionCreate) -> ConnectionProfile:
+        """Insert a new connection profile and return the full persisted model.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
+            data: Validated ConnectionCreate input.
 
         Returns:
-            List of row dicts (column → value).
+            The newly created ConnectionProfile with assigned id and timestamps.
         """
-        # TODO(phase-1): implement using Core select()
-        raise NotImplementedError
+        now = _now()
+        row_data = {
+            "name": data.name,
+            "engine": data.engine,
+            "host": data.host,
+            "port": data.port,
+            "database": data.database,
+            "username": data.username,
+            # Repository stores password_encrypted as an opaque string.
+            # Encryption/decryption is handled outside this layer.
+            "password_encrypted": data.password,
+            "ssl_mode": data.ssl_mode,
+            "read_only": data.read_only,
+            "color": data.color,
+            "created_at": now,
+            "updated_at": now,
+            "last_used_at": None,
+        }
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.insert(connection_profile_table).values(**row_data)
+            )
+            pk = result.inserted_primary_key
+            assert pk is not None
+            new_id: int = pk[0]
+            row = conn.execute(
+                sa.select(connection_profile_table).where(
+                    connection_profile_table.c.id == new_id
+                )
+            ).one()
+        return _row_to_connection(row)
 
-    def get_connection(self, conn: Connection, connection_id: int) -> dict | None:
-        """Fetch a single connection profile by ID.
+    def get_connection(self, conn_id: int) -> ConnectionProfile | None:
+        """Fetch a single connection profile by primary key.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            connection_id: Primary key of the profile.
+            conn_id: Primary key of the profile.
 
         Returns:
-            Row dict or None if not found.
+            ConnectionProfile or None if not found.
         """
-        # TODO(phase-1): implement
-        raise NotImplementedError
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                sa.select(connection_profile_table).where(
+                    connection_profile_table.c.id == conn_id
+                )
+            ).one_or_none()
+        if row is None:
+            return None
+        return _row_to_connection(row)
 
-    def create_connection(self, conn: Connection, data: dict) -> int:
-        """Insert a new connection profile and return the new ID.
-
-        Args:
-            conn: Open SQLAlchemy Core connection.
-            data: Column → value mapping (excluding id).
+    def list_connections(self) -> list[ConnectionProfile]:
+        """Return all connection profiles ordered by last_used_at DESC (NULLs last), then created_at DESC.
 
         Returns:
-            The auto-generated primary key.
+            List of ConnectionProfile models.
         """
-        # TODO(phase-1): implement using Core insert()
-        raise NotImplementedError
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                sa.select(connection_profile_table).order_by(
+                    connection_profile_table.c.last_used_at.desc().nulls_last(),
+                    connection_profile_table.c.created_at.desc(),
+                )
+            ).fetchall()
+        return [_row_to_connection(r) for r in rows]
 
-    def update_connection(self, conn: Connection, connection_id: int, data: dict) -> None:
-        """Update an existing connection profile.
+    def update_connection(
+        self, conn_id: int, data: ConnectionUpdate
+    ) -> ConnectionProfile | None:
+        """Partially update a connection profile (only fields set in data).
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            connection_id: Profile to update.
-            data: Partial column → value mapping with fields to update.
-        """
-        # TODO(phase-1): implement using Core update()
-        raise NotImplementedError
+            conn_id: Profile to update.
+            data: ConnectionUpdate with only the fields that should change.
 
-    def delete_connection(self, conn: Connection, connection_id: int) -> None:
-        """Delete a connection profile by ID.
+        Returns:
+            Updated ConnectionProfile or None if the profile was not found.
+        """
+        updates = data.model_dump(exclude_unset=True)
+
+        # Remap plaintext "password" to "password_encrypted"
+        if "password" in updates:
+            updates["password_encrypted"] = updates.pop("password")
+
+        updates["updated_at"] = _now()
+
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.update(connection_profile_table)
+                .where(connection_profile_table.c.id == conn_id)
+                .values(**updates)
+            )
+            if result.rowcount == 0:
+                return None
+            row = conn.execute(
+                sa.select(connection_profile_table).where(
+                    connection_profile_table.c.id == conn_id
+                )
+            ).one()
+        return _row_to_connection(row)
+
+    def delete_connection(self, conn_id: int) -> bool:
+        """Delete a connection profile by primary key.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            connection_id: Profile to delete.
+            conn_id: Profile to delete.
+
+        Returns:
+            True if a row was deleted, False if the id did not exist.
         """
-        # TODO(phase-1): implement using Core delete()
-        raise NotImplementedError
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.delete(connection_profile_table).where(
+                    connection_profile_table.c.id == conn_id
+                )
+            )
+        return result.rowcount > 0
+
+    def touch_last_used(self, conn_id: int) -> None:
+        """Set last_used_at to the current UTC time for a connection profile.
+
+        Args:
+            conn_id: Profile to touch.
+        """
+        with self._engine.begin() as conn:
+            conn.execute(
+                sa.update(connection_profile_table)
+                .where(connection_profile_table.c.id == conn_id)
+                .values(last_used_at=_now())
+            )
 
     # ── QueryHistory ─────────────────────────────────────────────────────
 
-    def add_history(self, conn: Connection, data: dict) -> int:
-        """Insert a query history record and return the new ID.
+    def add_history(self, entry: QueryHistory) -> QueryHistory:
+        """Insert a query history record and return it with the assigned id.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            data: Column → value mapping.
+            entry: QueryHistory model (id field is ignored; a new one is assigned).
 
         Returns:
-            The auto-generated primary key.
+            QueryHistory with the auto-assigned primary key.
         """
-        # TODO(phase-1): implement
-        raise NotImplementedError
+        row_data = {
+            "connection_id": entry.connection_id,
+            "sql": entry.sql,
+            "executed_at": entry.executed_at,
+            "duration_ms": entry.duration_ms,
+            "row_count": entry.row_count,
+            "success": entry.success,
+            "error_message": entry.error_message,
+        }
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.insert(query_history_table).values(**row_data)
+            )
+            pk = result.inserted_primary_key
+            assert pk is not None
+            new_id: int = pk[0]
+            row = conn.execute(
+                sa.select(query_history_table).where(
+                    query_history_table.c.id == new_id
+                )
+            ).one()
+        return _row_to_history(row)
 
     def list_history(
-        self,
-        conn: Connection,
-        connection_id: int,
-        *,
-        limit: int = 50,
-    ) -> list[dict]:
+        self, connection_id: int, limit: int = 50
+    ) -> list[QueryHistory]:
         """Return the most recent query history for a connection.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            connection_id: Filter by this connection profile ID.
-            limit: Maximum rows to return, newest first.
+            connection_id: Filter by this connection profile id.
+            limit: Maximum rows to return (newest first).
 
         Returns:
-            List of row dicts.
+            List of QueryHistory models ordered by executed_at DESC.
         """
-        # TODO(phase-1): implement
-        raise NotImplementedError
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                sa.select(query_history_table)
+                .where(query_history_table.c.connection_id == connection_id)
+                .order_by(query_history_table.c.executed_at.desc())
+                .limit(limit)
+            ).fetchall()
+        return [_row_to_history(r) for r in rows]
 
     # ── SavedQuery ───────────────────────────────────────────────────────
 
-    def list_saved_queries(self, conn: Connection, connection_id: int | None = None) -> list[dict]:
-        """Return saved queries, optionally filtered by connection.
+    def create_saved_query(
+        self,
+        name: str,
+        sql: str,
+        connection_id: int | None = None,
+        description: str | None = None,
+    ) -> SavedQuery:
+        """Insert a new saved query and return the persisted model.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            connection_id: If given, also include global queries (connection_id IS NULL).
+            name: Human-friendly label for the query.
+            sql: The SQL text to save.
+            connection_id: Optional connection to associate with (None = global).
+            description: Optional longer description.
 
         Returns:
-            List of row dicts.
+            SavedQuery with the assigned id and timestamps.
         """
-        # TODO(phase-1): implement
-        raise NotImplementedError
+        now = _now()
+        row_data = {
+            "connection_id": connection_id,
+            "name": name,
+            "sql": sql,
+            "description": description,
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.insert(saved_query_table).values(**row_data)
+            )
+            pk = result.inserted_primary_key
+            assert pk is not None
+            new_id: int = pk[0]
+            row = conn.execute(
+                sa.select(saved_query_table).where(
+                    saved_query_table.c.id == new_id
+                )
+            ).one()
+        return _row_to_saved_query(row)
 
-    def save_query(self, conn: Connection, data: dict) -> int:
-        """Insert a saved query and return the new ID.
+    def get_saved_query(self, query_id: int) -> SavedQuery | None:
+        """Fetch a single saved query by primary key.
 
         Args:
-            conn: Open SQLAlchemy Core connection.
-            data: Column → value mapping.
+            query_id: Primary key of the saved query.
 
         Returns:
-            The auto-generated primary key.
+            SavedQuery or None if not found.
         """
-        # TODO(phase-1): implement
-        raise NotImplementedError
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                sa.select(saved_query_table).where(
+                    saved_query_table.c.id == query_id
+                )
+            ).one_or_none()
+        if row is None:
+            return None
+        return _row_to_saved_query(row)
+
+    def list_saved_queries(
+        self, connection_id: int | None = None
+    ) -> list[SavedQuery]:
+        """Return saved queries filtered by connection visibility.
+
+        When connection_id is None, return only global queries (connection_id IS NULL).
+        When connection_id is given, return that connection's queries AND global queries.
+
+        Args:
+            connection_id: Connection filter; None returns only globals.
+
+        Returns:
+            List of SavedQuery models.
+        """
+        with self._engine.connect() as conn:
+            if connection_id is None:
+                stmt = sa.select(saved_query_table).where(
+                    saved_query_table.c.connection_id.is_(None)
+                )
+            else:
+                stmt = sa.select(saved_query_table).where(
+                    sa.or_(
+                        saved_query_table.c.connection_id == connection_id,
+                        saved_query_table.c.connection_id.is_(None),
+                    )
+                )
+            rows = conn.execute(stmt).fetchall()
+        return [_row_to_saved_query(r) for r in rows]
+
+    def update_saved_query(
+        self,
+        query_id: int,
+        data: SavedQueryUpdate,
+    ) -> SavedQuery | None:
+        """Partially update a saved query (only fields set in data).
+
+        Args:
+            query_id: Primary key of the saved query.
+            data: SavedQueryUpdate with only the fields that should change.
+                  Pass ``description=None`` explicitly to clear the column.
+
+        Returns:
+            Updated SavedQuery or None if not found.
+        """
+        updates: dict[str, object] = data.model_dump(exclude_unset=True)
+        updates["updated_at"] = _now()
+
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.update(saved_query_table)
+                .where(saved_query_table.c.id == query_id)
+                .values(**updates)
+            )
+            if result.rowcount == 0:
+                return None
+            row = conn.execute(
+                sa.select(saved_query_table).where(
+                    saved_query_table.c.id == query_id
+                )
+            ).one()
+        return _row_to_saved_query(row)
+
+    def delete_saved_query(self, query_id: int) -> bool:
+        """Delete a saved query by primary key.
+
+        Args:
+            query_id: Primary key of the saved query.
+
+        Returns:
+            True if a row was deleted, False if the id did not exist.
+        """
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                sa.delete(saved_query_table).where(
+                    saved_query_table.c.id == query_id
+                )
+            )
+        return result.rowcount > 0
 
 
 def make_engine(db_path: Path) -> sa.Engine:
     """Create a synchronous SQLAlchemy engine for the app SQLite database.
+
+    SQLite does not enforce foreign keys by default; we register a ``connect``
+    event listener that issues ``PRAGMA foreign_keys=ON`` on every new
+    connection so that ON DELETE CASCADE / ON DELETE SET NULL fire correctly.
 
     Args:
         db_path: Absolute path to the SQLite file.
@@ -254,4 +501,11 @@ def make_engine(db_path: Path) -> sa.Engine:
         Configured Engine instance.
     """
     url = f"sqlite:///{db_path}"
-    return create_engine(url, connect_args={"check_same_thread": False})
+    engine = create_engine(url, connect_args={"check_same_thread": False})
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_fk(dbapi_conn: object, _record: object) -> None:
+        assert isinstance(dbapi_conn, sqlite3.Connection)
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
+    return engine
