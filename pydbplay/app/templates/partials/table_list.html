@@ -15,6 +15,17 @@
       <span class="flex-shrink-0 text-gray-400" title="Table">⊞</span>
       {% endif %}
       <span class="flex-1 truncate font-mono text-gray-700">{{ row.info.name }}</span>
+      {# Browse button #}
+      <a
+        href="/c/{{ conn_id }}/browse/{{ row.info.name }}"
+        class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-green-600 transition-opacity"
+        title="Browse rows"
+        onclick="event.stopPropagation()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+        </svg>
+      </a>
       {# Structure toggle button #}
       <button
         type="button"

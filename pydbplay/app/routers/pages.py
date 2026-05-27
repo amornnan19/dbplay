@@ -65,3 +65,23 @@ def workspace_query_page(conn_id: int, request: Request, repository: RepositoryD
         "query.html",
         {"conn": conn, "conn_id": conn_id, "dialect": conn.engine},
     )
+
+
+@router.get("/c/{conn_id}/browse/{table}", response_class=HTMLResponse)
+def browse_page(
+    conn_id: int, table: str, request: Request, repository: RepositoryDep
+) -> HTMLResponse:
+    """GET /c/{conn_id}/browse/{table} → browse workspace for that table."""
+    conn = repository.get_connection(conn_id)
+    if conn is None:
+        return _templates.TemplateResponse(
+            request,
+            "partials/connection_error.html",
+            {"message": f"Connection {conn_id} not found."},
+            status_code=404,
+        )
+    return _templates.TemplateResponse(
+        request,
+        "browse.html",
+        {"conn": conn, "conn_id": conn_id, "table": table, "conn_name": conn.name},
+    )

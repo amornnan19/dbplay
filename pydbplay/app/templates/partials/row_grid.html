@@ -1,0 +1,208 @@
+{#
+  Row grid partial — paginated table with sort, filter, inline edit, insert, delete.
+
+  Context:
+    result    — BrowseResult (table, columns, rows, pk_columns, page, page_size, has_next)
+    conn_id   — int
+    table     — str
+    page      — int
+    page_size — int
+    sort      — str | None   current sort column
+    dir       — str          "ASC" | "DESC"
+    filters   — dict[str, str]  {col: value} active filters
+    error     — str | None
+
+  Security: ALL data rendered via Jinja2 autoescape (no |safe anywhere).
+  JS helpers use data-* attributes — cell values are NEVER interpolated into JS.
+#}
+
+{% if error %}
+<div class="rounded p-3 bg-red-50 border border-red-200 text-red-700 text-sm" role="alert">
+  <span class="font-semibold">Error:</span> {{ error }}
+</div>
+{% else %}
+
+{# ── Add-row form ─────────────────────────────────────────────────────────── #}
+<details class="mb-3 border border-gray-200 rounded bg-white" id="add-row-panel">
+  <summary class="px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
+    + Add row
+  </summary>
+  <div class="px-3 pb-3 pt-2">
+    <form
+      hx-post="/api/c/{{ conn_id }}/rows/{{ table }}"
+      hx-target="#row-grid"
+      hx-swap="innerHTML"
+      hx-on::after-request="this.reset()"
+    >
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
+        {% for col in result.columns %}
+        {% if col not in result.pk_columns %}
+        <div class="flex flex-col gap-0.5">
+          <label class="text-xs text-gray-500 font-mono">{{ col }}</label>
+          <input
+            type="text"
+            name="{{ col }}"
+            class="border border-gray-200 rounded px-2 py-0.5 text-xs font-mono focus:outline-none focus:border-indigo-400"
+            placeholder="NULL"
+          />
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <button
+        type="submit"
+        class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+      >Insert</button>
+    </form>
+  </div>
+</details>
+
+{# ── Filter row ───────────────────────────────────────────────────────────── #}
+<form
+  id="filter-form"
+  hx-get="/api/c/{{ conn_id }}/rows/{{ table }}"
+  hx-target="#row-grid"
+  hx-swap="innerHTML"
+  class="flex flex-wrap gap-2 mb-2 items-end"
+>
+  <input type="hidden" name="page" value="1" />
+  <input type="hidden" name="page_size" value="{{ page_size }}" />
+  {% if sort %}<input type="hidden" name="sort" value="{{ sort }}" />{% endif %}
+  <input type="hidden" name="dir" value="{{ dir }}" />
+  {% for col in result.columns %}
+  <div class="flex flex-col gap-0">
+    <label class="text-xs text-gray-400 font-mono leading-tight">{{ col }}</label>
+    <input
+      type="text"
+      name="f_{{ col }}"
+      value="{{ filters.get(col, '') }}"
+      placeholder="filter…"
+      class="border border-gray-200 rounded px-2 py-0.5 text-xs font-mono w-28 focus:outline-none focus:border-indigo-400"
+    />
+  </div>
+  {% endfor %}
+  <button type="submit" class="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs hover:bg-gray-200">Apply</button>
+  <a
+    href="#"
+    hx-get="/api/c/{{ conn_id }}/rows/{{ table }}?page=1&page_size={{ page_size }}"
+    hx-target="#row-grid"
+    hx-swap="innerHTML"
+    class="px-2 py-0.5 text-xs text-gray-400 hover:text-gray-600"
+  >Clear</a>
+</form>
+
+{# ── Data table ───────────────────────────────────────────────────────────── #}
+{% if result.rows %}
+<div class="overflow-x-auto">
+  <table class="min-w-full text-sm border-collapse" id="data-table">
+    <thead>
+      <tr class="bg-gray-50 border-b border-gray-200">
+        {# Delete-action column header #}
+        <th class="w-8 px-2 py-1.5 border-r border-gray-200"></th>
+        {% for col in result.columns %}
+        <th class="px-3 py-1.5 text-left font-medium text-gray-600 whitespace-nowrap border-r border-gray-200 last:border-r-0">
+          {# Sort toggle — clicking the same column flips direction #}
+          {% set next_dir = "DESC" if (sort == col and dir == "ASC") else "ASC" %}
+          <a
+            href="#"
+            hx-get="/api/c/{{ conn_id }}/rows/{{ table }}?page=1&page_size={{ page_size }}&sort={{ col }}&dir={{ next_dir }}{% for fc, fv in filters.items() %}&f_{{ fc }}={{ fv }}{% endfor %}"
+            hx-target="#row-grid"
+            hx-swap="innerHTML"
+            class="flex items-center gap-1 hover:text-indigo-600 group"
+          >
+            {{ col }}
+            {% if sort == col %}
+            <span class="text-indigo-400 text-xs">{% if dir == "ASC" %}▲{% else %}▼{% endif %}</span>
+            {% else %}
+            <span class="text-gray-300 text-xs opacity-0 group-hover:opacity-100">▲</span>
+            {% endif %}
+          </a>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100" id="row-tbody">
+      {% for row in result.rows %}
+      {# Build a pk_values dict for this row #}
+      {% set row_pk = {} %}
+      {% for pk_col in result.pk_columns %}
+        {% set col_idx = result.columns.index(pk_col) %}
+        {% set _ = row_pk.update({pk_col: row[col_idx]|string}) %}
+      {% endfor %}
+      {# Row ID for HTMX targeting #}
+      {% set row_id = row_pk.values()|list|join('-') %}
+      <tr class="hover:bg-gray-50 group" id="row-{{ row_id }}">
+        {# Delete button #}
+        <td class="px-2 py-1.5 border-r border-gray-200 text-center">
+          <button
+            type="button"
+            class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity text-xs leading-none"
+            title="Delete row"
+            hx-delete="/api/c/{{ conn_id }}/rows/{{ table }}"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-confirm="Delete this row?"
+            hx-vals='{% set pk_obj = {} %}{% for k,v in row_pk.items() %}{% set _ = pk_obj.update({"pk_" ~ k: v}) %}{% endfor %}{{ pk_obj | tojson }}'
+          >✕</button>
+        </td>
+        {% for col in result.columns %}
+        {% set cell = row[loop.index0] %}
+        <td
+          class="px-3 py-1.5 border-r border-gray-200 last:border-r-0 font-mono text-xs text-gray-800 whitespace-nowrap"
+          data-col="{{ col }}"
+          data-value="{{ cell if cell is not none else '' }}"
+          {% for pk_col, pk_val in row_pk.items() %}data-pk-{{ pk_col }}="{{ pk_val }}"{% endfor %}
+          ondblclick="window.__startEdit && window.__startEdit(this)"
+        >
+          <span class="cell-display">
+            {% if cell is none %}
+            <span class="text-gray-400 italic">NULL</span>
+            {% else %}
+            {{ cell }}
+            {% endif %}
+          </span>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Pagination ───────────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+  {% if page > 1 %}
+  <a
+    href="#"
+    hx-get="/api/c/{{ conn_id }}/rows/{{ table }}?page={{ page - 1 }}&page_size={{ page_size }}{% if sort %}&sort={{ sort }}&dir={{ dir }}{% endif %}{% for fc, fv in filters.items() %}&f_{{ fc }}={{ fv }}{% endfor %}"
+    hx-target="#row-grid"
+    hx-swap="innerHTML"
+    class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100"
+  >← Prev</a>
+  {% else %}
+  <span class="px-2 py-0.5 border border-gray-100 rounded text-gray-300 cursor-default">← Prev</span>
+  {% endif %}
+
+  <span>Page {{ page }}</span>
+
+  {% if result.has_next %}
+  <a
+    href="#"
+    hx-get="/api/c/{{ conn_id }}/rows/{{ table }}?page={{ page + 1 }}&page_size={{ page_size }}{% if sort %}&sort={{ sort }}&dir={{ dir }}{% endif %}{% for fc, fv in filters.items() %}&f_{{ fc }}={{ fv }}{% endfor %}"
+    hx-target="#row-grid"
+    hx-swap="innerHTML"
+    class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100"
+  >Next →</a>
+  {% else %}
+  <span class="px-2 py-0.5 border border-gray-100 rounded text-gray-300 cursor-default">Next →</span>
+  {% endif %}
+</div>
+
+{% else %}
+{# ── Empty state ─────────────────────────────────────────────────────────── #}
+<div class="py-8 text-center text-gray-400 text-sm">
+  No rows found{% if filters %} (filters active){% endif %}.
+</div>
+{% endif %}
+
+{% endif %}

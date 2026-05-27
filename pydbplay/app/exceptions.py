@@ -4,7 +4,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from pydbplay.adapters.base import AdapterError as _AdapterError
+from pydbplay.adapters.base import ReadOnlyViolationError as _ReadOnlyViolationError
 from pydbplay.adapters.base import UnsupportedEngineError as _UnsupportedEngineError
+from pydbplay.core.row_editor import RowEditError as _RowEditError
 
 
 class PydbplayError(Exception):
@@ -55,6 +57,18 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=403, content={"detail": str(exc)})
 
     # ── Adapter-layer exceptions (raised from core/) ──────────────────────
+    # NOTE: ReadOnlyViolationError is a subclass of AdapterError — its handler
+    # MUST be registered before the AdapterError handler so FastAPI dispatches
+    # to the more-specific 403 handler rather than the catch-all 400 handler.
+
+    @app.exception_handler(_ReadOnlyViolationError)
+    async def _read_only_violation_error(
+        request: Request, exc: _ReadOnlyViolationError
+    ) -> HTMLResponse | JSONResponse:
+        msg = str(exc)
+        if _is_htmx(request):
+            return HTMLResponse(content=_error_html(msg), status_code=403)
+        return JSONResponse(status_code=403, content={"detail": msg})
 
     @app.exception_handler(_UnsupportedEngineError)
     async def _unsupported_engine(
@@ -64,6 +78,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         if _is_htmx(request):
             return HTMLResponse(content=_error_html(msg), status_code=422)
         return JSONResponse(status_code=422, content={"detail": msg})
+
+    @app.exception_handler(_RowEditError)
+    async def _row_edit_error(request: Request, exc: _RowEditError) -> HTMLResponse | JSONResponse:
+        msg = str(exc)
+        if _is_htmx(request):
+            return HTMLResponse(content=_error_html(msg), status_code=400)
+        return JSONResponse(status_code=400, content={"detail": msg})
 
     @app.exception_handler(_AdapterError)
     async def _base_adapter_error(

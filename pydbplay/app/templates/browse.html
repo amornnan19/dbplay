@@ -2,15 +2,28 @@
 
 {% block title %}Browse {{ table }} — pydbplay{% endblock %}
 
+{% block head %}
+<script type="module" src="/static/js/grid.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-full">
-  <h1 class="text-xl font-semibold mb-4">
-    {{ conn_name|default("Connection") }} / {{ table }}
-  </h1>
 
-  <!-- TODO(phase-2): implement paginated browse view with HTMX + inline edit -->
+  {# ── Header bar ────────────────────────────────────────────────────────── #}
+  <div class="flex items-center gap-3 mb-4">
+    <a href="/c/{{ conn_id }}" class="text-xs text-gray-400 hover:text-gray-600">← Query editor</a>
+    <span class="text-gray-300">/</span>
+    <span class="font-semibold text-gray-800">{{ conn.name }}</span>
+    <span class="text-gray-300">/</span>
+    <span class="font-mono text-indigo-700 font-semibold">{{ table }}</span>
+    {% if conn.read_only %}
+    <span class="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700 font-medium ml-2">read-only</span>
+    {% endif %}
+  </div>
+
+  {# ── Grid container — HTMX loads the row_grid partial on mount ─────────── #}
   <div
-    id="browse-table"
+    id="row-grid"
     hx-get="/api/c/{{ conn_id }}/rows/{{ table }}"
     hx-trigger="load"
     hx-swap="innerHTML"
@@ -18,5 +31,6 @@
   >
     Loading rows…
   </div>
+
 </div>
 {% endblock %}

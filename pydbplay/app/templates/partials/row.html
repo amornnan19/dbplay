@@ -1,0 +1,44 @@
+{#
+  Single <tr> returned after a successful PATCH (inline cell edit).
+  Template context:
+    columns    — list[str]  column names in display order
+    row        — list[Any]  cell values aligned with columns
+    pk_columns — list[str]  primary-key column names
+    pk_values  — dict[str,str]  pk_col → value (used to rebuild data-pk-* attrs)
+    pk_obj     — dict[str,str]  {"pk_<col>": value} — ready for hx-vals tojson
+    conn_id    — int
+    table      — str
+#}
+<tr class="hover:bg-gray-50 group" id="row-{{ pk_values.values()|list|join('-') }}">
+  {# Delete button cell #}
+  <td class="px-2 py-1.5 border-r border-gray-200 text-center w-8">
+    <button
+      type="button"
+      class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity text-xs"
+      title="Delete row"
+      hx-delete="/api/c/{{ conn_id }}/rows/{{ table }}"
+      hx-target="closest tr"
+      hx-swap="outerHTML"
+      hx-confirm="Delete this row?"
+      hx-vals='{{ pk_obj | tojson }}'
+    >✕</button>
+  </td>
+  {% for col in columns %}
+  {% set cell = row[loop.index0] %}
+  <td
+    class="px-3 py-1.5 border-r border-gray-200 last:border-r-0 font-mono text-xs text-gray-800 whitespace-nowrap relative"
+    data-col="{{ col }}"
+    data-value="{{ cell if cell is not none else '' }}"
+    {% for pk_col, pk_val in pk_values.items() %}data-pk-{{ pk_col }}="{{ pk_val }}"{% endfor %}
+    ondblclick="window.__startEdit && window.__startEdit(this)"
+  >
+    <span class="cell-display">
+      {% if cell is none %}
+      <span class="text-gray-400 italic">NULL</span>
+      {% else %}
+      {{ cell }}
+      {% endif %}
+    </span>
+  </td>
+  {% endfor %}
+</tr>
