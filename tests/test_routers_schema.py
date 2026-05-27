@@ -78,24 +78,24 @@ def _register_sqlite_connection(client: TestClient, db_path: Path) -> int:
     return repo.list_connections()[0].id
 
 
-def _register_postgres_connection(client: TestClient) -> int:
-    """POST a postgres connection (engine unsupported) and return its id."""
+def _register_mysql_connection(client: TestClient) -> int:
+    """POST a mysql connection (engine unsupported) and return its id."""
     client.post(
         "/api/connections",
         data={
-            "name": "PG Connection",
-            "engine": "postgres",
+            "name": "MySQL Connection",
+            "engine": "mysql",
             "database": "mydb",
             "host": "localhost",
-            "port": "5432",
-            "username": "pguser",
+            "port": "3306",
+            "username": "mysqluser",
         },
     )
     from pydbplay.db.repository import Repository
 
     repo: Repository = client.app.state.repository  # type: ignore[attr-defined]
     conns = repo.list_connections()
-    # Return the postgres one (last created)
+    # Return the mysql one (last created)
     return conns[-1].id
 
 
@@ -180,11 +180,11 @@ def test_list_tables_missing_conn_returns_404(tmp_path: Path) -> None:
 
 
 def test_list_tables_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /tables for a postgres connection returns 422 (UnsupportedEngineError)."""
+    """GET /tables for a mysql connection returns 422 (UnsupportedEngineError)."""
     client = _make_client(tmp_path)
 
     with client:
-        conn_id = _register_postgres_connection(client)
+        conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/tables")
 
     assert resp.status_code == 422
@@ -264,11 +264,11 @@ def test_describe_table_missing_conn_returns_404(tmp_path: Path) -> None:
 
 
 def test_describe_table_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /tables/sometable for a postgres connection returns 422."""
+    """GET /tables/sometable for a mysql connection returns 422."""
     client = _make_client(tmp_path)
 
     with client:
-        conn_id = _register_postgres_connection(client)
+        conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/tables/sometable")
 
     assert resp.status_code == 422
@@ -280,11 +280,11 @@ def test_describe_table_unsupported_engine_returns_422(tmp_path: Path) -> None:
 
 
 def test_list_schemas_unsupported_engine_returns_422(tmp_path: Path) -> None:
-    """GET /schemas for a postgres connection returns 422."""
+    """GET /schemas for a mysql connection returns 422."""
     client = _make_client(tmp_path)
 
     with client:
-        conn_id = _register_postgres_connection(client)
+        conn_id = _register_mysql_connection(client)
         resp = client.get(f"/api/c/{conn_id}/schemas")
 
     assert resp.status_code == 422
@@ -301,9 +301,7 @@ def test_table_list_escapes_special_characters(tmp_path: Path) -> None:
     # Create a table whose name contains an executable XSS payload.
     # SQLite allows arbitrary names when double-quoted.
     with sqlite3.connect(db_path) as cx:
-        cx.execute(
-            'CREATE TABLE "<img src=x onerror=alert(1)>" (id INTEGER PRIMARY KEY)'
-        )
+        cx.execute('CREATE TABLE "<img src=x onerror=alert(1)>" (id INTEGER PRIMARY KEY)')
 
     client = _make_client(tmp_path)
 

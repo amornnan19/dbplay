@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from pydbplay.adapters.base import DBAdapter, UnsupportedEngineError
+from pydbplay.adapters.postgres import PostgresAdapter
 from pydbplay.adapters.sqlite import SQLiteAdapter
 from pydbplay.db.models import ConnectionProfile
 from pydbplay.db.repository import Repository
@@ -34,11 +35,19 @@ def _create_adapter(profile: ConnectionProfile) -> DBAdapter:
     """
     if profile.engine == "sqlite":
         return SQLiteAdapter(profile.database, read_only=profile.read_only)
+    if profile.engine == "postgres":
+        # TODO(phase-crypto): decrypt profile.password_encrypted before use
+        return PostgresAdapter(
+            host=profile.host or "localhost",
+            port=profile.port or 5432,
+            database=profile.database,
+            username=profile.username or "",
+            password=profile.password_encrypted,
+            ssl_mode=profile.ssl_mode,
+            read_only=profile.read_only,
+        )
     # TODO(phase-pool): tune per-engine pool_size on the adapter's Engine
-    # TODO(phase-crypto): decrypt profile.password_encrypted before building DSN
-    raise UnsupportedEngineError(
-        f"Engine '{profile.engine}' is not yet supported; only 'sqlite' is available"
-    )
+    raise UnsupportedEngineError(f"Engine '{profile.engine}' is not yet supported")
 
 
 def _create_adapter_from_create(data: ConnectionCreate) -> DBAdapter:
@@ -57,10 +66,18 @@ def _create_adapter_from_create(data: ConnectionCreate) -> DBAdapter:
     """
     if data.engine == "sqlite":
         return SQLiteAdapter(data.database, read_only=data.read_only)
-    # TODO(phase-crypto): decrypt / receive password from ConnectionCreate for pg/mysql DSN
-    raise UnsupportedEngineError(
-        f"Engine '{data.engine}' is not yet supported; only 'sqlite' is available"
-    )
+    if data.engine == "postgres":
+        # TODO(phase-crypto): decrypt / receive password from ConnectionCreate for pg DSN
+        return PostgresAdapter(
+            host=data.host or "localhost",
+            port=data.port or 5432,
+            database=data.database,
+            username=data.username or "",
+            password=data.password,
+            ssl_mode=data.ssl_mode,
+            read_only=data.read_only,
+        )
+    raise UnsupportedEngineError(f"Engine '{data.engine}' is not yet supported")
 
 
 class ConnectionManager:
@@ -195,10 +212,7 @@ class ConnectionManager:
         to_evict: list[tuple[int, DBAdapter]] = []
 
         with self._lock:
-            idle_ids = [
-                pid for pid, entry in self._cache.items()
-                if entry.last_used < cutoff
-            ]
+            idle_ids = [pid for pid, entry in self._cache.items() if entry.last_used < cutoff]
             for pid in idle_ids:
                 entry = self._cache.pop(pid)
                 to_evict.append((pid, entry.adapter))

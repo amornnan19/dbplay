@@ -1,6 +1,5 @@
 """SQLite adapter — SQLAlchemy Core engine, sync, no FastAPI dependency."""
 
-import re
 import sqlite3
 import time
 from collections.abc import Iterator
@@ -15,6 +14,7 @@ from pydbplay.adapters.base import (
     ReadOnlyViolationError,
     UnknownIdentifierError,
 )
+from pydbplay.core.sql_validator import is_read_only_statement
 from pydbplay.schemas.query import QueryResult
 from pydbplay.schemas.schema import (
     ColumnInfo,
@@ -41,65 +41,10 @@ _READ_PRAGMA_ALLOWLIST: frozenset[str] = frozenset(
     }
 )
 
-# Matches: PRAGMA [schema.]name  or  PRAGMA [schema.]name(args)
-# Does NOT match assignment form (PRAGMA name = value).
-_PRAGMA_READ_RE = re.compile(
-    r"^\s*PRAGMA\s+(?:[A-Za-z_][A-Za-z0-9_]*\s*\.\s*)?([A-Za-z_][A-Za-z0-9_]*)"
-    r"\s*(?:\([^)]*\))?\s*;?\s*$",
-    re.IGNORECASE,
-)
-# Matches the assignment form: PRAGMA [schema.]name = ...  or  PRAGMA [schema.]name=...
-_PRAGMA_WRITE_RE = re.compile(
-    r"^\s*PRAGMA\s+(?:[A-Za-z_][A-Za-z0-9_]*\s*\.\s*)?[A-Za-z_][A-Za-z0-9_]*\s*=",
-    re.IGNORECASE,
-)
-# Matches EXPLAIN [QUERY PLAN] prefix
-_EXPLAIN_RE = re.compile(
-    r"^\s*EXPLAIN\s+(?:QUERY\s+PLAN\s+)?",
-    re.IGNORECASE,
-)
-# Matches a SELECT statement (plain or CTE: WITH ... SELECT)
-_SELECT_RE = re.compile(
-    r"^\s*(?:WITH\b.*?\bSELECT\b|SELECT\b)",
-    re.IGNORECASE | re.DOTALL,
-)
-
 
 def _is_read_only_statement(sql: str) -> bool:
-    """Return True only for statements that are safe to execute in read-only mode.
-
-    A statement is a read iff:
-    - It is a SELECT (including leading CTE ``WITH … SELECT``), OR
-    - It is ``EXPLAIN`` / ``EXPLAIN QUERY PLAN`` wrapping a read (strip the
-      prefix and re-check the inner statement), OR
-    - It is a **read PRAGMA**: matches ``PRAGMA <name>`` or
-      ``PRAGMA <name>(args)`` with NO ``=`` assignment, AND ``<name>`` is in
-      ``_READ_PRAGMA_ALLOWLIST``.
-
-    Everything else is considered a write and returns False.
-    """
-    stripped = sql.strip()
-
-    # Handle EXPLAIN / EXPLAIN QUERY PLAN — strip prefix and re-check inner stmt
-    explain_match = _EXPLAIN_RE.match(stripped)
-    if explain_match:
-        inner = stripped[explain_match.end():]
-        return _is_read_only_statement(inner)
-
-    # SELECT (plain or CTE)
-    if _SELECT_RE.match(stripped):
-        return True
-
-    # PRAGMA — reject assignment forms immediately
-    if _PRAGMA_WRITE_RE.match(stripped):
-        return False
-
-    pragma_match = _PRAGMA_READ_RE.match(stripped)
-    if pragma_match:
-        pragma_name = pragma_match.group(1).lower()
-        return pragma_name in _READ_PRAGMA_ALLOWLIST
-
-    return False
+    """Thin wrapper kept for backwards-compat; delegates to the shared classifier."""
+    return is_read_only_statement(sql, "sqlite", extra_read_pragmas=_READ_PRAGMA_ALLOWLIST)
 
 
 def _make_engine(database: str) -> Engine:
@@ -198,9 +143,7 @@ class SQLiteAdapter(DBAdapter):
 
             # -- Indexes --------------------------------------------------
             idx_rows = conn.execute(
-                text(
-                    f"PRAGMA {self.quote_identifier(effective_schema)}.index_list({quoted_table})"
-                )
+                text(f"PRAGMA {self.quote_identifier(effective_schema)}.index_list({quoted_table})")
             ).fetchall()
 
             indexes: list[IndexInfo] = []
@@ -307,9 +250,7 @@ class SQLiteAdapter(DBAdapter):
             AdapterError: On DB-level errors.
         """
         if self._read_only and not _is_read_only_statement(sql):
-            raise ReadOnlyViolationError(
-                "Statement is not allowed in read-only mode"
-            )
+            raise ReadOnlyViolationError("Statement is not allowed in read-only mode")
 
         try:
             start = time.monotonic()
@@ -351,12 +292,8 @@ class SQLiteAdapter(DBAdapter):
         """
         if not _is_read_only_statement(sql):
             if self._read_only:
-                raise ReadOnlyViolationError(
-                    "Statement is not allowed in read-only mode"
-                )
-            raise AdapterError(
-                "execute_stream supports only row-returning read queries"
-            )
+                raise ReadOnlyViolationError("Statement is not allowed in read-only mode")
+            raise AdapterError("execute_stream supports only row-returning read queries")
 
         with self._engine.connect() as conn:
             result = conn.execute(text(sql))
@@ -398,9 +335,7 @@ class SQLiteAdapter(DBAdapter):
             UnknownIdentifierError: When *name* is not in *known*.
         """
         if name not in known:
-            raise UnknownIdentifierError(
-                f"Identifier {name!r} is not in the known-safe set"
-            )
+            raise UnknownIdentifierError(f"Identifier {name!r} is not in the known-safe set")
         return self.quote_identifier(name)
 
     # ------------------------------------------------------------------
@@ -423,9 +358,7 @@ class SQLiteAdapter(DBAdapter):
         quoted_table = self.quote_identifier(table)
         with self._engine.connect() as conn:
             rows = conn.execute(
-                text(
-                    f"PRAGMA {self.quote_identifier(effective_schema)}.table_info({quoted_table})"
-                )
+                text(f"PRAGMA {self.quote_identifier(effective_schema)}.table_info({quoted_table})")
             ).fetchall()
 
         # PRAGMA table_info: cid, name, type, notnull, dflt_value, pk

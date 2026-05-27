@@ -32,10 +32,7 @@ def _make_repo(tmp_path: Path) -> Repository:
 def _seed_target_db(target_path: Path, rows: int = 5) -> None:
     """Create a target SQLite DB with a 'items' table seeded with *rows* rows."""
     with sqlite3.connect(target_path) as cx:
-        cx.execute(
-            "CREATE TABLE IF NOT EXISTS items "
-            "(id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
-        )
+        cx.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
         for i in range(1, rows + 1):
             cx.execute("INSERT INTO items (name) VALUES (?)", (f"item_{i}",))
         cx.commit()
@@ -156,9 +153,7 @@ def test_query_executor_enforce_limit_false_never_modifies(tmp_path: Path) -> No
     executor, conn_id, _repo, cm = _make_executor(tmp_path, target)
 
     try:
-        result = executor.run(
-            conn_id, "SELECT * FROM items", limit=2, enforce_limit=False
-        )
+        result = executor.run(conn_id, "SELECT * FROM items", limit=2, enforce_limit=False)
 
         assert result.limit_applied is False
         # All 5 rows returned because no limit was applied
@@ -186,9 +181,7 @@ def test_query_executor_insert_no_limit(tmp_path: Path) -> None:
         assert "LIMIT" not in result.effective_sql.upper()
 
         # Verify the row was actually inserted
-        verify = executor.run(
-            conn_id, "SELECT COUNT(*) as cnt FROM items", enforce_limit=False
-        )
+        verify = executor.run(conn_id, "SELECT COUNT(*) as cnt FROM items", enforce_limit=False)
         count_val = verify.rows[0][0]
         assert count_val == 6  # 5 seeded + 1 inserted
 
@@ -348,10 +341,7 @@ def test_query_executor_history_passthrough(tmp_path: Path) -> None:
 def _seed_json_db(target_path: Path) -> None:
     """Create a target SQLite DB with a 'jt' table that has a JSON text column."""
     with sqlite3.connect(target_path) as cx:
-        cx.execute(
-            "CREATE TABLE IF NOT EXISTS jt "
-            "(id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
-        )
+        cx.execute("CREATE TABLE IF NOT EXISTS jt (id INTEGER PRIMARY KEY, data TEXT NOT NULL)")
         cx.execute("INSERT INTO jt (data) VALUES (?)", ('{"name": "alice"}',))
         cx.commit()
 

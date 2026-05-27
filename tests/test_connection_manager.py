@@ -28,9 +28,7 @@ def _make_repo(tmp_path: Path) -> Repository:
 def _seed_target_db(target_path: Path) -> None:
     """Create a minimal target SQLite DB with one user table."""
     with sqlite3.connect(target_path) as cx:
-        cx.execute(
-            "CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, name TEXT)"
-        )
+        cx.execute("CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, name TEXT)")
         cx.execute("INSERT INTO sample (name) VALUES ('Alice')")
         cx.commit()
 
@@ -47,14 +45,14 @@ def _insert_sqlite_profile(repo: Repository, db_path: Path) -> int:
     return profile.id
 
 
-def _insert_postgres_profile(repo: Repository) -> int:
-    """Insert a postgres ConnectionProfile (never actually connected) and return its id."""
+def _insert_mysql_profile(repo: Repository) -> int:
+    """Insert a mysql ConnectionProfile (never actually connected) and return its id."""
     profile = repo.create_connection(
         ConnectionCreate(
-            name="Test Postgres",
-            engine="postgres",
+            name="Test MySQL",
+            engine="mysql",
             host="localhost",
-            port=5432,
+            port=3306,
             database="mydb",
             username="admin",
         )
@@ -128,10 +126,10 @@ def test_get_adapter_missing_profile_raises(tmp_path: Path) -> None:
         cm.get_adapter(9999)
 
 
-def test_get_adapter_postgres_raises_unsupported(tmp_path: Path) -> None:
-    """get_adapter raises UnsupportedEngineError for a postgres profile."""
+def test_get_adapter_mysql_raises_unsupported(tmp_path: Path) -> None:
+    """get_adapter raises UnsupportedEngineError for a mysql profile."""
     repo = _make_repo(tmp_path)
-    pid = _insert_postgres_profile(repo)
+    pid = _insert_mysql_profile(repo)
     cm = ConnectionManager(repo)
 
     with pytest.raises(UnsupportedEngineError):
@@ -150,9 +148,7 @@ def test_test_connection_valid_sqlite(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     cm = ConnectionManager(repo)
 
-    result = cm.test_connection(
-        ConnectionCreate(name="x", engine="sqlite", database=str(target))
-    )
+    result = cm.test_connection(ConnectionCreate(name="x", engine="sqlite", database=str(target)))
     assert result.ok is True
     assert result.message  # non-empty
 
@@ -163,24 +159,22 @@ def test_test_connection_invalid_sqlite_path(tmp_path: Path) -> None:
     cm = ConnectionManager(repo)
 
     bad_path = str(tmp_path / "nonexistent_dir" / "missing.db")
-    result = cm.test_connection(
-        ConnectionCreate(name="x", engine="sqlite", database=bad_path)
-    )
+    result = cm.test_connection(ConnectionCreate(name="x", engine="sqlite", database=bad_path))
     assert result.ok is False
     assert result.message  # non-empty error text
 
 
-def test_test_connection_postgres_returns_not_supported(tmp_path: Path) -> None:
-    """test_connection for postgres returns ok=False with an informative message."""
+def test_test_connection_mysql_returns_not_supported(tmp_path: Path) -> None:
+    """test_connection for mysql returns ok=False with an informative message."""
     repo = _make_repo(tmp_path)
     cm = ConnectionManager(repo)
 
     result = cm.test_connection(
         ConnectionCreate(
             name="x",
-            engine="postgres",
+            engine="mysql",
             host="localhost",
-            port=5432,
+            port=3306,
             database="mydb",
             username="admin",
         )
@@ -196,9 +190,7 @@ def test_test_connection_does_not_cache_adapter(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     cm = ConnectionManager(repo)
 
-    cm.test_connection(
-        ConnectionCreate(name="x", engine="sqlite", database=str(target))
-    )
+    cm.test_connection(ConnectionCreate(name="x", engine="sqlite", database=str(target)))
     # Cache must remain empty — no profile_id was given
     assert cm._cache == {}
 
@@ -228,9 +220,7 @@ def test_test_connection_adapter_raises_returns_false_with_message(
     monkeypatch.setattr(SQLiteAdapter, "test_connection", _raising_test_connection)
     monkeypatch.setattr(SQLiteAdapter, "dispose", _tracking_dispose)
 
-    result = cm.test_connection(
-        ConnectionCreate(name="x", engine="sqlite", database=str(target))
-    )
+    result = cm.test_connection(ConnectionCreate(name="x", engine="sqlite", database=str(target)))
 
     assert result.ok is False
     assert "synthetic driver error" in result.message
@@ -413,6 +403,7 @@ def test_concurrent_get_adapter_single_instance(tmp_path: Path) -> None:
     SQLiteAdapter.dispose = _counting_dispose  # type: ignore[method-assign]
 
     try:
+
         def worker() -> None:
             try:
                 adapter = cm.get_adapter(pid)
@@ -435,7 +426,6 @@ def test_concurrent_get_adapter_single_instance(tmp_path: Path) -> None:
     # Exactly one adapter survives in the cache; all N-1 race-losers were disposed.
     assert len(cm._cache) == 1
     assert dispose_count[0] == n_threads - 1, (
-        f"Expected {n_threads - 1} dispose() calls for race-losers, "
-        f"got {dispose_count[0]}"
+        f"Expected {n_threads - 1} dispose() calls for race-losers, got {dispose_count[0]}"
     )
     cm.close_all()

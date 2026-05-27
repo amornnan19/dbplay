@@ -59,7 +59,9 @@ def _sample_create(**overrides: object) -> ConnectionCreate:
     return ConnectionCreate(**defaults)  # type: ignore[arg-type]
 
 
-def _sample_history(connection_id: int, *, sql: str = "SELECT 1", offset_seconds: int = 0) -> QueryHistory:
+def _sample_history(
+    connection_id: int, *, sql: str = "SELECT 1", offset_seconds: int = 0
+) -> QueryHistory:
     """Return a minimal QueryHistory (id=0 — ignored by add_history)."""
     return QueryHistory(
         id=0,
@@ -460,8 +462,8 @@ def test_update_saved_query_partial(tmp_path: Path) -> None:
 
     assert updated is not None
     assert updated.name == "New name"
-    assert updated.sql == "SELECT 1"          # unchanged
-    assert updated.description == "old desc"   # unchanged
+    assert updated.sql == "SELECT 1"  # unchanged
+    assert updated.description == "old desc"  # unchanged
     assert updated.updated_at > original_updated_at
 
 
@@ -550,8 +552,8 @@ def test_update_saved_query_absent_field_unchanged(tmp_path: Path) -> None:
 
     assert updated is not None
     assert updated.name == "Renamed"
-    assert updated.sql == "SELECT 1"        # not in payload — unchanged
-    assert updated.description == "keep me" # not in payload — unchanged
+    assert updated.sql == "SELECT 1"  # not in payload — unchanged
+    assert updated.description == "keep me"  # not in payload — unchanged
 
 
 # ---------------------------------------------------------------------------

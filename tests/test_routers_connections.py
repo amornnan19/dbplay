@@ -45,9 +45,7 @@ def _make_client(tmp_path: Path) -> TestClient:
 def _seed_sqlite(path: Path) -> None:
     """Create a minimal SQLite DB at *path* so test_connection returns ok."""
     with sqlite3.connect(path) as cx:
-        cx.execute(
-            "CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, name TEXT)"
-        )
+        cx.execute("CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, name TEXT)")
         cx.commit()
 
 
@@ -160,8 +158,8 @@ def test_test_connection_invalid_sqlite_path(tmp_path: Path) -> None:
     assert "Failed" in resp.text or "fail" in resp.text.lower() or "False" in resp.text
 
 
-def test_test_connection_postgres_unsupported(tmp_path: Path) -> None:
-    """POST /api/connections/test for postgres returns a fail (not supported yet)."""
+def test_test_connection_mysql_unsupported(tmp_path: Path) -> None:
+    """POST /api/connections/test for mysql returns a fail (not supported yet)."""
     client = _make_client(tmp_path)
 
     with client:
@@ -169,9 +167,9 @@ def test_test_connection_postgres_unsupported(tmp_path: Path) -> None:
             "/api/connections/test",
             data={
                 "name": "x",
-                "engine": "postgres",
+                "engine": "mysql",
                 "host": "localhost",
-                "port": "5432",
+                "port": "3306",
                 "database": "mydb",
                 "username": "admin",
             },
@@ -312,19 +310,19 @@ def test_connect_missing_profile_returns_404(tmp_path: Path) -> None:
     assert resp.status_code == 404
 
 
-def test_connect_postgres_returns_422(tmp_path: Path) -> None:
-    """POST /connect for a postgres profile returns 422 (UnsupportedEngineError)."""
+def test_connect_mysql_returns_422(tmp_path: Path) -> None:
+    """POST /connect for a mysql profile returns 422 (UnsupportedEngineError)."""
     client = _make_client(tmp_path)
 
     with client:
         client.post(
             "/api/connections",
             data={
-                "name": "PG Conn",
-                "engine": "postgres",
+                "name": "MySQL Conn",
+                "engine": "mysql",
                 "database": "mydb",
                 "host": "localhost",
-                "port": "5432",
+                "port": "3306",
                 "username": "admin",
             },
         )

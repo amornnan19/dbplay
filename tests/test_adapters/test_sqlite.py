@@ -58,9 +58,7 @@ def _seed(a: SQLiteAdapter) -> None:
         )
         """
     )
-    a.execute(
-        "CREATE INDEX IF NOT EXISTS idx_employee_dept ON employee(dept_id)"
-    )
+    a.execute("CREATE INDEX IF NOT EXISTS idx_employee_dept ON employee(dept_id)")
     # Insert departments
     for i in range(1, 4):
         a.execute(
@@ -217,9 +215,7 @@ def test_execute_select_returns_rows(adapter: SQLiteAdapter) -> None:
 
 
 def test_execute_select_with_params(adapter: SQLiteAdapter) -> None:
-    result = adapter.execute(
-        "SELECT dept_name FROM department WHERE dept_id = :id", {"id": 2}
-    )
+    result = adapter.execute("SELECT dept_name FROM department WHERE dept_id = :id", {"id": 2})
     assert result.rows == [["Dept2"]]
 
 
@@ -237,9 +233,7 @@ def test_execute_insert_reports_affected(adapter: SQLiteAdapter) -> None:
     assert result.row_count == 1
 
     # Verify the row was committed
-    check = adapter.execute(
-        "SELECT dept_name FROM department WHERE dept_id = :id", {"id": 99}
-    )
+    check = adapter.execute("SELECT dept_name FROM department WHERE dept_id = :id", {"id": 99})
     assert check.rows == [["NewDept"]]
 
 
@@ -270,11 +264,7 @@ def test_execute_stream_all_rows(adapter: SQLiteAdapter) -> None:
 
 def test_execute_stream_chunk_boundaries(adapter: SQLiteAdapter) -> None:
     """5 rows with chunk_size=2 should yield chunks of sizes [2, 2, 1]."""
-    chunks = list(
-        adapter.execute_stream(
-            "SELECT * FROM employee ORDER BY emp_id", chunk_size=2
-        )
-    )
+    chunks = list(adapter.execute_stream("SELECT * FROM employee ORDER BY emp_id", chunk_size=2))
     assert len(chunks) == 3
     assert len(chunks[0]) == 2
     assert len(chunks[1]) == 2
@@ -282,9 +272,7 @@ def test_execute_stream_chunk_boundaries(adapter: SQLiteAdapter) -> None:
 
 
 def test_execute_stream_returns_dicts(adapter: SQLiteAdapter) -> None:
-    chunks = list(
-        adapter.execute_stream("SELECT * FROM employee ORDER BY emp_id", chunk_size=10)
-    )
+    chunks = list(adapter.execute_stream("SELECT * FROM employee ORDER BY emp_id", chunk_size=10))
     assert len(chunks) == 1
     row = chunks[0][0]
     assert isinstance(row, dict)
@@ -337,9 +325,7 @@ def test_readonly_select_allowed(ro_adapter: SQLiteAdapter) -> None:
 
 def test_readonly_insert_rejected(ro_adapter: SQLiteAdapter) -> None:
     with pytest.raises(ReadOnlyViolationError):
-        ro_adapter.execute(
-            "INSERT INTO department(dept_id, dept_name) VALUES (100, 'X')"
-        )
+        ro_adapter.execute("INSERT INTO department(dept_id, dept_name) VALUES (100, 'X')")
 
 
 def test_readonly_update_rejected(ro_adapter: SQLiteAdapter) -> None:
@@ -364,9 +350,7 @@ def test_readonly_alter_table_rejected(ro_adapter: SQLiteAdapter) -> None:
 
 def test_readonly_replace_into_rejected(ro_adapter: SQLiteAdapter) -> None:
     with pytest.raises(ReadOnlyViolationError):
-        ro_adapter.execute(
-            "REPLACE INTO department(dept_id, dept_name) VALUES (1, 'X')"
-        )
+        ro_adapter.execute("REPLACE INTO department(dept_id, dept_name) VALUES (1, 'X')")
 
 
 def test_readonly_attach_rejected(ro_adapter: SQLiteAdapter) -> None:

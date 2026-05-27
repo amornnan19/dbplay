@@ -35,17 +35,14 @@ def _seed_target_db(db_path: Path, rows: int = 5) -> None:
     """Create a target SQLite DB with a 'things' table seeded with *rows* rows."""
     with sqlite3.connect(db_path) as cx:
         cx.execute(
-            "CREATE TABLE IF NOT EXISTS things "
-            "(id INTEGER PRIMARY KEY, label TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS things (id INTEGER PRIMARY KEY, label TEXT NOT NULL)"
         )
         for i in range(1, rows + 1):
             cx.execute("INSERT INTO things (label) VALUES (?)", (f"thing_{i}",))
         cx.commit()
 
 
-def _register_connection(
-    client: TestClient, db_path: Path, *, read_only: bool = False
-) -> int:
+def _register_connection(client: TestClient, db_path: Path, *, read_only: bool = False) -> int:
     """Create a connection profile via POST and return its id."""
     data: dict[str, str] = {
         "name": "Test SQLite",
@@ -194,7 +191,11 @@ def test_validate_malformed_sql(tmp_path: Path) -> None:
         )
 
     assert resp.status_code == 200
-    assert "error" in resp.text.lower() or "parse" in resp.text.lower() or "invalid" in resp.text.lower()
+    assert (
+        "error" in resp.text.lower()
+        or "parse" in resp.text.lower()
+        or "invalid" in resp.text.lower()
+    )
 
 
 def test_validate_good_select(tmp_path: Path) -> None:
