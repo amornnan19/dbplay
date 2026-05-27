@@ -10,6 +10,27 @@ from collections.abc import Iterator
 from pydbplay.schemas.query import QueryResult
 from pydbplay.schemas.schema import TableInfo, TableSchema
 
+# ---------------------------------------------------------------------------
+# Adapter exception hierarchy (FastAPI-free — safe to import anywhere)
+# ---------------------------------------------------------------------------
+
+
+class AdapterError(Exception):
+    """Base class for all adapter-level errors."""
+
+
+class ReadOnlyViolationError(AdapterError):
+    """Raised when a write statement is submitted to a read-only adapter."""
+
+
+class UnknownIdentifierError(AdapterError):
+    """Raised when an identifier is not in the known-safe whitelist."""
+
+
+# ---------------------------------------------------------------------------
+# Abstract base
+# ---------------------------------------------------------------------------
+
 
 class DBAdapter(ABC):
     """Interface shared by every DB engine adapter. Sync throughout.
