@@ -15,12 +15,31 @@ HTMX_HEADERS = {"HX-Request": "true"}
 
 
 def _make_client(tmp_path: Path) -> TestClient:
-    """Create an isolated TestClient backed by tmp_path."""
+    """Create an isolated TestClient backed by tmp_path.
+
+    Uses base_url="http://localhost" so the Host header passes the security
+    middleware's allowlist (default is "testserver" which would 400).
+
+    An httpx request hook copies the csrf_token cookie into the X-CSRFToken
+    header for every unsafe method, matching what the browser HTMX extension
+    does in production and satisfying the CSRF double-submit check.
+    """
     import os
 
     os.environ["PYDBPLAY_APP_DIR"] = str(tmp_path)
     app = create_app()
-    return TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
+
+    def _inject_csrf(request):  # type: ignore[no-untyped-def]
+        if request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            token = client.cookies.get("csrf_token")
+            if token:
+                request.headers["X-CSRFToken"] = token
+
+    client.event_hooks["request"] = [_inject_csrf]
+    # Prime: a GET so the middleware sets the csrf_token cookie.
+    client.get("/health")
+    return client
 
 
 def _seed_sqlite(path: Path) -> None:

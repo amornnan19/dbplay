@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from pydbplay.app.exceptions import register_exception_handlers
+from pydbplay.app.middleware import LocalhostSecurityMiddleware
 from pydbplay.app.routers import connections, export, pages, query, rows, schema
 from pydbplay.config import get_settings
 from pydbplay.core.connection_manager import ConnectionManager
@@ -57,6 +58,9 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+
+    # Security middleware — must be added before static files / routers
+    app.add_middleware(LocalhostSecurityMiddleware, settings=settings)  # type: ignore[arg-type]
 
     # Static files
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")

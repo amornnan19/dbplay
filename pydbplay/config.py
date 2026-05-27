@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 7777
 
+    # Security — Host/Origin allowlist + CSRF double-submit cookie
+    security_enabled: bool = True
+    allowed_hosts: list[str] = ["127.0.0.1", "localhost", "::1", "[::1]"]
+
     @field_validator("app_dir", mode="after")
     @classmethod
     def ensure_app_dir(cls, v: Path) -> Path:
