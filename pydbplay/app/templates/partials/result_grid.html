@@ -15,6 +15,36 @@
       Results limited to {{ result.row_count }} rows — add your own LIMIT to override
     </span>
     {% endif %}
+    {# Export toolbar — only shown when there are rows to export #}
+    {% if result.columns and result.row_count > 0 and executed_sql %}
+    <span class="ml-auto flex items-center gap-1">
+      <span class="text-gray-400">Export:</span>
+      <button
+        type="button"
+        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        data-conn-id="{{ conn_id }}"
+        data-sql="{{ executed_sql }}"
+        data-fmt="csv"
+        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+      >CSV</button>
+      <button
+        type="button"
+        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        data-conn-id="{{ conn_id }}"
+        data-sql="{{ executed_sql }}"
+        data-fmt="json"
+        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+      >JSON</button>
+      <button
+        type="button"
+        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        data-conn-id="{{ conn_id }}"
+        data-sql="{{ executed_sql }}"
+        data-fmt="sql"
+        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+      >SQL</button>
+    </span>
+    {% endif %}
   </div>
 
   {% if result.columns %}

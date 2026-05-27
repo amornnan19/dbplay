@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from pydbplay.core.connection_manager import ConnectionManager
+from pydbplay.core.exporter import Exporter
 from pydbplay.core.query_executor import QueryExecutor
 from pydbplay.core.row_editor import RowEditor
 from pydbplay.db.repository import Repository
@@ -30,7 +31,13 @@ def get_row_editor(request: Request) -> RowEditor:
     return request.app.state.row_editor  # type: ignore[no-any-return]
 
 
+def get_exporter(request: Request) -> Exporter:
+    """Provide the Exporter from app.state."""
+    return request.app.state.exporter  # type: ignore[no-any-return]
+
+
 RepositoryDep = Annotated[Repository, Depends(get_repository)]
 ConnectionManagerDep = Annotated[ConnectionManager, Depends(get_connection_manager)]
 QueryExecutorDep = Annotated[QueryExecutor, Depends(get_query_executor)]
 RowEditorDep = Annotated[RowEditor, Depends(get_row_editor)]
+ExporterDep = Annotated[Exporter, Depends(get_exporter)]

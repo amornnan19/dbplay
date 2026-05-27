@@ -5,7 +5,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from pydbplay.adapters.base import AdapterError as _AdapterError
 from pydbplay.adapters.base import ReadOnlyViolationError as _ReadOnlyViolationError
+from pydbplay.adapters.base import UnknownIdentifierError as _UnknownIdentifierError
 from pydbplay.adapters.base import UnsupportedEngineError as _UnsupportedEngineError
+from pydbplay.core.exporter import ExporterError as _ExporterError
 from pydbplay.core.row_editor import RowEditError as _RowEditError
 
 
@@ -89,6 +91,22 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(_AdapterError)
     async def _base_adapter_error(
         request: Request, exc: _AdapterError
+    ) -> HTMLResponse | JSONResponse:
+        msg = str(exc)
+        if _is_htmx(request):
+            return HTMLResponse(content=_error_html(msg), status_code=400)
+        return JSONResponse(status_code=400, content={"detail": msg})
+
+    @app.exception_handler(_ExporterError)
+    async def _exporter_error(request: Request, exc: _ExporterError) -> HTMLResponse | JSONResponse:
+        msg = str(exc)
+        if _is_htmx(request):
+            return HTMLResponse(content=_error_html(msg), status_code=400)
+        return JSONResponse(status_code=400, content={"detail": msg})
+
+    @app.exception_handler(_UnknownIdentifierError)
+    async def _unknown_identifier_error(
+        request: Request, exc: _UnknownIdentifierError
     ) -> HTMLResponse | JSONResponse:
         msg = str(exc)
         if _is_htmx(request):

@@ -44,9 +44,19 @@ def run_query(
     except UnsupportedEngineError:
         raise
     except (QueryError, MultipleStatementsError, AdapterError, ReadOnlyViolationError) as exc:
-        context: dict[str, object] = {"error": str(exc), "result": None}
+        context: dict[str, object] = {
+            "error": str(exc),
+            "result": None,
+            "conn_id": conn_id,
+            "executed_sql": sql,
+        }
     else:
-        context = {"result": result, "error": None}
+        context = {
+            "result": result,
+            "error": None,
+            "conn_id": conn_id,
+            "executed_sql": sql,
+        }
     response = _templates.TemplateResponse(request, "partials/result_grid.html", context)
     # The query was recorded in history (on success AND failure), so tell the
     # history panel to refresh via an HX-Trigger client event.

@@ -14,6 +14,7 @@ from pydbplay.app.middleware import LocalhostSecurityMiddleware
 from pydbplay.app.routers import connections, export, pages, query, rows, schema
 from pydbplay.config import get_settings
 from pydbplay.core.connection_manager import ConnectionManager
+from pydbplay.core.exporter import Exporter
 from pydbplay.core.query_executor import QueryExecutor
 from pydbplay.core.row_editor import RowEditor
 from pydbplay.db.repository import Repository, make_engine, run_migrations
@@ -43,10 +44,12 @@ def create_app() -> FastAPI:
         connection_manager = ConnectionManager(repository)
         query_executor = QueryExecutor(connection_manager, repository)
         row_editor = RowEditor(connection_manager)
+        exporter = Exporter(connection_manager)
         app.state.repository = repository
         app.state.connection_manager = connection_manager
         app.state.query_executor = query_executor
         app.state.row_editor = row_editor
+        app.state.exporter = exporter
         app.state.engine = engine
 
         yield

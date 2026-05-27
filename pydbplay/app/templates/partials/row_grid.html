@@ -22,6 +22,35 @@
 </div>
 {% else %}
 
+{# ── Export toolbar ───────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-1 mb-2 text-xs">
+  <span class="text-gray-400">Export table:</span>
+  <button
+    type="button"
+    class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+    data-conn-id="{{ conn_id }}"
+    data-table="{{ table }}"
+    data-fmt="csv"
+    onclick="window.__exportDownload(this.dataset.connId, {table: this.dataset.table, format: this.dataset.fmt})"
+  >CSV</button>
+  <button
+    type="button"
+    class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+    data-conn-id="{{ conn_id }}"
+    data-table="{{ table }}"
+    data-fmt="json"
+    onclick="window.__exportDownload(this.dataset.connId, {table: this.dataset.table, format: this.dataset.fmt})"
+  >JSON</button>
+  <button
+    type="button"
+    class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+    data-conn-id="{{ conn_id }}"
+    data-table="{{ table }}"
+    data-fmt="sql"
+    onclick="window.__exportDownload(this.dataset.connId, {table: this.dataset.table, format: this.dataset.fmt})"
+  >SQL</button>
+</div>
+
 {# ── Add-row form ─────────────────────────────────────────────────────────── #}
 <details class="mb-3 border border-gray-200 rounded bg-white" id="add-row-panel">
   <summary class="px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
