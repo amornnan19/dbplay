@@ -1,0 +1,93 @@
+{% set ts = table_schema %}
+<div class="px-2 py-2 text-xs">
+
+  {# --- Columns --- #}
+  <div class="font-semibold text-gray-500 uppercase tracking-wide mb-1">Columns</div>
+  <table class="w-full text-left">
+    <thead>
+      <tr class="text-gray-400">
+        <th class="pb-0.5 pr-2 font-medium">Name</th>
+        <th class="pb-0.5 pr-2 font-medium">Type</th>
+        <th class="pb-0.5 pr-2 font-medium">Null</th>
+        <th class="pb-0.5 font-medium">Default</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for col in ts.columns %}
+      <tr class="hover:bg-white">
+        <td class="py-0.5 pr-2 font-mono text-gray-700 whitespace-nowrap">
+          {{ col.name }}
+          {% if col.is_primary_key %}
+          <span class="ml-1 px-1 py-0 rounded text-amber-700 bg-amber-50 font-sans" title="Primary Key">PK</span>
+          {% endif %}
+        </td>
+        <td class="py-0.5 pr-2 text-gray-500 whitespace-nowrap">{{ col.data_type }}</td>
+        <td class="py-0.5 pr-2 text-gray-400">
+          {% if col.is_nullable %}
+          <span class="text-gray-400">YES</span>
+          {% else %}
+          <span class="text-gray-600 font-medium">NO</span>
+          {% endif %}
+        </td>
+        <td class="py-0.5 text-gray-400 font-mono">
+          {% if col.default_value is not none %}{{ col.default_value }}{% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if ts.indexes %}
+  {# --- Indexes --- #}
+  <div class="font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-1">Indexes</div>
+  <table class="w-full text-left">
+    <thead>
+      <tr class="text-gray-400">
+        <th class="pb-0.5 pr-2 font-medium">Name</th>
+        <th class="pb-0.5 pr-2 font-medium">Columns</th>
+        <th class="pb-0.5 font-medium">Flags</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for idx in ts.indexes %}
+      <tr class="hover:bg-white">
+        <td class="py-0.5 pr-2 font-mono text-gray-700">{{ idx.name }}</td>
+        <td class="py-0.5 pr-2 text-gray-500">{{ idx.columns | join(", ") }}</td>
+        <td class="py-0.5 text-gray-400">
+          {% if idx.is_primary %}<span class="mr-1 px-1 rounded bg-amber-50 text-amber-700">PK</span>{% endif %}
+          {% if idx.is_unique %}<span class="px-1 rounded bg-blue-50 text-blue-600">UNIQUE</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if ts.foreign_keys %}
+  {# --- Foreign Keys --- #}
+  <div class="font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-1">Foreign Keys</div>
+  <table class="w-full text-left">
+    <thead>
+      <tr class="text-gray-400">
+        <th class="pb-0.5 pr-2 font-medium">Columns</th>
+        <th class="pb-0.5 pr-2 font-medium">References</th>
+        <th class="pb-0.5 font-medium">On Delete</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for fk in ts.foreign_keys %}
+      <tr class="hover:bg-white">
+        <td class="py-0.5 pr-2 font-mono text-gray-700">{{ fk.columns | join(", ") }}</td>
+        <td class="py-0.5 pr-2 text-gray-500">
+          {{ fk.ref_table }}({{ fk.ref_columns | join(", ") }})
+        </td>
+        <td class="py-0.5 text-gray-400">
+          {% if fk.on_delete %}{{ fk.on_delete }}{% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+</div>

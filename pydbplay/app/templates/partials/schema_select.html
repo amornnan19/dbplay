@@ -1,0 +1,31 @@
+{% if schemas|length == 1 %}
+{# Single schema (e.g. SQLite "main") — load table list directly #}
+<div
+  id="schema-tables"
+  hx-get="/api/c/{{ conn_id }}/tables?schema={{ schemas[0] }}"
+  hx-trigger="load"
+  hx-swap="innerHTML"
+>
+  <span class="text-xs text-gray-400 px-2 py-2">Loading tables…</span>
+</div>
+{% elif schemas %}
+<div class="px-2 pb-2">
+  <select
+    class="w-full text-xs border border-gray-200 rounded px-1 py-1 bg-white"
+    hx-get="/api/c/{{ conn_id }}/tables"
+    hx-target="#schema-tables"
+    hx-swap="innerHTML"
+    hx-include="this"
+    name="schema"
+  >
+    {% for s in schemas %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div id="schema-tables">
+  <span class="text-xs text-gray-400 px-2 py-2">Select a schema above.</span>
+</div>
+{% else %}
+<p class="text-xs text-gray-400 px-2 py-2">No schemas found.</p>
+{% endif %}
