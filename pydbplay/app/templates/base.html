@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}pydbplay{% endblock %}</title>
 
+  <!-- Inline SVG favicon (data-URI) — avoids a /favicon.ico 404 with no asset file -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%236366f1'/><text x='8' y='12' font-size='9' text-anchor='middle' fill='white' font-family='sans-serif'>db</text></svg>" />
+
   <!-- Tailwind CSS (CDN — dev only; vendor + pin at packaging) -->
   <script src="https://cdn.tailwindcss.com"></script>
 

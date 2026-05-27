@@ -392,3 +392,24 @@ def test_connect_returns_hx_redirect(tmp_path: Path) -> None:
 
     assert resp.status_code == 200
     assert resp.headers.get("HX-Redirect") == f"/c/{conn_id}"
+
+
+def test_run_query_sets_hx_trigger_for_history_refresh(tmp_path: Path) -> None:
+    """POST query sets HX-Trigger: query-ran so the history panel auto-refreshes.
+
+    The query is recorded in history on BOTH success and failure, so the header
+    must be present on both paths.
+    """
+    db_path = tmp_path / "target.db"
+    _seed_target_db(db_path, rows=3)
+    client = _make_client(tmp_path)
+
+    with client:
+        conn_id = _register_connection(client, db_path)
+        ok = client.post(f"/api/c/{conn_id}/query", data={"sql": "SELECT * FROM things"})
+        assert ok.status_code == 200
+        assert ok.headers.get("HX-Trigger") == "query-ran"
+
+        bad = client.post(f"/api/c/{conn_id}/query", data={"sql": "SELECT * FROM missing_table"})
+        assert bad.status_code == 200
+        assert bad.headers.get("HX-Trigger") == "query-ran"

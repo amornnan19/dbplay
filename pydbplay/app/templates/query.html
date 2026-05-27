@@ -84,7 +84,7 @@
         <div
           id="query-history-panel"
           hx-get="/api/c/{{ conn_id }}/query/history"
-          hx-trigger="load"
+          hx-trigger="load, query-ran from:body"
           hx-swap="innerHTML"
         >
           <p class="text-xs text-gray-400 px-2 py-2">Loading…</p>
