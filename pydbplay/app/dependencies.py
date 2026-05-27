@@ -1,23 +1,22 @@
-"""FastAPI dependency-injection stubs."""
-
-# TODO(phase-1): Implement real DI — wire ConnectionManager to the app-internal
-#                SQLite repo and inject it into routers.
+"""FastAPI dependency-injection helpers — read from app.state."""
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
+
+from pydbplay.core.connection_manager import ConnectionManager
+from pydbplay.db.repository import Repository
 
 
-class ConnectionManager:
-    """Stub placeholder — see pydbplay/core/connection_manager.py."""
-
-    # TODO(phase-1): Replace with real ConnectionManager from core/
-
-
-def _get_connection_manager() -> ConnectionManager:
-    """Provide a ConnectionManager instance (stub)."""
-    # TODO(phase-1): Instantiate from Settings / repo
-    return ConnectionManager()
+def get_repository(request: Request) -> Repository:
+    """Provide the app-internal Repository from app.state."""
+    return request.app.state.repository  # type: ignore[no-any-return]
 
 
-ConnectionManagerDep = Annotated[ConnectionManager, Depends(_get_connection_manager)]
+def get_connection_manager(request: Request) -> ConnectionManager:
+    """Provide the ConnectionManager from app.state."""
+    return request.app.state.connection_manager  # type: ignore[no-any-return]
+
+
+RepositoryDep = Annotated[Repository, Depends(get_repository)]
+ConnectionManagerDep = Annotated[ConnectionManager, Depends(get_connection_manager)]

@@ -45,4 +45,6 @@ class Settings(BaseSettings):
         return self.app_dir / self.db_path
 
 
-settings = Settings()
+def get_settings() -> Settings:
+    """Return a fresh Settings instance (reads env vars at call time)."""
+    return Settings()

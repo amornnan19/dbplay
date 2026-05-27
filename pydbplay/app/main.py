@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -9,6 +11,9 @@ from fastapi.templating import Jinja2Templates
 
 from pydbplay.app.exceptions import register_exception_handlers
 from pydbplay.app.routers import connections, export, pages, query, rows, schema
+from pydbplay.config import get_settings
+from pydbplay.core.connection_manager import ConnectionManager
+from pydbplay.db.repository import Repository, make_engine, run_migrations
 
 _APP_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _APP_DIR / "templates"
@@ -22,6 +27,27 @@ def get_templates() -> Jinja2Templates:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    settings = get_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # ── Startup ──────────────────────────────────────────────────────
+        settings.app_dir.mkdir(parents=True, exist_ok=True)
+        engine = make_engine(settings.db_file)
+        with engine.connect() as conn:
+            run_migrations(conn)
+        repository = Repository(engine)
+        connection_manager = ConnectionManager(repository)
+        app.state.repository = repository
+        app.state.connection_manager = connection_manager
+        app.state.engine = engine
+
+        yield
+
+        # ── Shutdown ──────────────────────────────────────────────────────
+        connection_manager.close_all()
+        engine.dispose()
+
     app = FastAPI(
         title="pydbplay",
         description="Local-first DB query playground",
@@ -29,6 +55,7 @@ def create_app() -> FastAPI:
         # Disable docs on non-localhost in future; fine for dev
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # Static files

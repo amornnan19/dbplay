@@ -1,0 +1,42 @@
+{% if connections %}
+<ul class="divide-y divide-gray-200 bg-white rounded border border-gray-200">
+  {% for conn in connections %}
+  <li class="flex items-center gap-3 px-4 py-3" id="conn-{{ conn.id }}">
+    {% if conn.color %}
+    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ conn.color }}"></span>
+    {% else %}
+    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-gray-300"></span>
+    {% endif %}
+
+    <div class="flex-1 min-w-0">
+      <span class="font-medium truncate block">{{ conn.name }}</span>
+      <span class="text-xs text-gray-500">{{ conn.engine }} &middot; {{ conn.database }}</span>
+      {% if conn.read_only %}
+      <span class="ml-1 text-xs text-amber-600 font-medium">read-only</span>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <button
+        class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        hx-post="/api/connections/{{ conn.id }}/connect"
+        hx-target="#connection-list"
+        hx-swap="innerHTML"
+      >Connect</button>
+
+      <button
+        class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+        hx-delete="/api/connections/{{ conn.id }}"
+        hx-target="#conn-{{ conn.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete connection '{{ conn.name }}'?"
+      >Delete</button>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-gray-500 text-sm py-4" id="connection-empty-state">
+  No connections yet. Add one to get started.
+</p>
+{% endif %}

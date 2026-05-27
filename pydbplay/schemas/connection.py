@@ -18,7 +18,7 @@ class ConnectionCreate(BaseModel):
     """Plaintext password — stored via keyring/Fernet, never persisted as-is."""
     ssl_mode: str | None = None
     read_only: bool = False
-    color: str | None = None
+    color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
 class ConnectionUpdate(BaseModel):
@@ -35,7 +35,7 @@ class ConnectionUpdate(BaseModel):
     password: str | None = None
     ssl_mode: str | None = None
     read_only: bool | None = None
-    color: str | None = None
+    color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
 class SavedQueryUpdate(BaseModel):
