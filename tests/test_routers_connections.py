@@ -278,7 +278,7 @@ def test_delete_nonexistent_connection(tmp_path: Path) -> None:
 
 
 def test_connect_sqlite_sets_last_used(tmp_path: Path) -> None:
-    """POST /connect on a valid sqlite connection returns 200 and sets last_used_at."""
+    """POST /connect on a valid sqlite connection returns 200 with HX-Redirect and sets last_used_at."""
     client = _make_client(tmp_path)
     db_path = tmp_path / "target.sqlite"
     _seed_sqlite(db_path)
@@ -296,7 +296,7 @@ def test_connect_sqlite_sets_last_used(tmp_path: Path) -> None:
 
         resp = client.post(f"/api/connections/{conn_id}/connect")
         assert resp.status_code == 200
-        assert "ConnTest" in resp.text
+        assert resp.headers.get("HX-Redirect") == f"/c/{conn_id}"
 
         # last_used_at must be set now
         updated = repo.get_connection(conn_id)

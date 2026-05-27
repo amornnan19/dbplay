@@ -210,13 +210,11 @@ def connect(
     repository: RepositoryDep,
     connection_manager: ConnectionManagerDep,
 ) -> HTMLResponse:
-    """POST /api/connections/{conn_id}/connect → refreshed list partial.
+    """POST /api/connections/{conn_id}/connect → HX-Redirect to workspace.
 
     Builds (or retrieves from cache) the adapter for the given connection,
-    which records last_used_at in the repository.
-
-    TODO(phase-dashboard): return HX-Redirect to /c/{id} once the dashboard
-    page exists.
+    which records last_used_at in the repository, then redirects the HTMX
+    client to the query workspace at /c/{conn_id}.
     """
     try:
         connection_manager.get_adapter(conn_id)
@@ -242,9 +240,8 @@ def connect(
             status_code=400,
         )
 
-    connections = repository.list_connections()
-    return _templates.TemplateResponse(
-        request,
-        "partials/connection_list.html",
-        {"connections": connections},
+    return HTMLResponse(
+        content="",
+        status_code=200,
+        headers={"HX-Redirect": f"/c/{conn_id}"},
     )

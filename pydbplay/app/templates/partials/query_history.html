@@ -1,0 +1,23 @@
+{% if history %}
+<ul class="divide-y divide-gray-100 text-xs">
+  {% for entry in history %}
+  <li class="px-2 py-1.5 flex items-start gap-2 hover:bg-gray-50 cursor-pointer group"
+      data-sql="{{ entry.sql }}"
+      onclick="window.__loadHistorySQL && window.__loadHistorySQL(this.dataset.sql)">
+    <span class="flex-shrink-0 mt-0.5 w-2 h-2 rounded-full {% if entry.success %}bg-green-400{% else %}bg-red-400{% endif %}"></span>
+    <div class="min-w-0 flex-1">
+      <div class="font-mono text-gray-700 truncate" title="{{ entry.sql }}">
+        {{ entry.sql[:80] }}{% if entry.sql|length > 80 %}…{% endif %}
+      </div>
+      <div class="text-gray-400 mt-0.5">
+        {{ entry.duration_ms }}ms
+        {% if entry.row_count is not none %}&middot; {{ entry.row_count }} row{% if entry.row_count != 1 %}s{% endif %}{% endif %}
+        {% if not entry.success %}&middot; <span class="text-red-500">failed</span>{% endif %}
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-xs text-gray-400 px-2 py-2">No queries yet.</p>
+{% endif %}
