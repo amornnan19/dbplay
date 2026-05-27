@@ -27,6 +27,39 @@ class QueryResult(BaseModel):
     """True when a LIMIT was auto-injected and the full result would be larger."""
 
 
+class QueryRunResult(BaseModel):
+    """Result returned by ``QueryExecutor.run()``.
+
+    Extends the fields of ``QueryResult`` with executor-level metadata such as
+    the effective SQL actually sent to the DB, whether a LIMIT was injected,
+    and whether the query is considered destructive.
+    """
+
+    columns: list[str]
+    """Ordered list of column names (empty for DML that returns no rows)."""
+
+    rows: list[list[Any]]
+    """Row data as nested lists, aligned with *columns*."""
+
+    row_count: int
+    """Rows returned (SELECT) or rows affected (DML)."""
+
+    duration_ms: int
+    """Wall-clock execution time in milliseconds (recorded by the executor)."""
+
+    effective_sql: str
+    """The SQL string actually sent to the database (may include injected LIMIT)."""
+
+    limit_applied: bool = False
+    """True when the executor injected a LIMIT clause that was not in the original SQL."""
+
+    truncated_possible: bool = False
+    """True when limit_applied=True — the full result set may be larger than returned."""
+
+    is_destructive: bool = False
+    """True when the original SQL is DELETE / UPDATE / DROP / TRUNCATE."""
+
+
 class QueryRequest(BaseModel):
     """Request body for POST /api/c/{conn_id}/query."""
 

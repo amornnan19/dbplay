@@ -127,6 +127,8 @@ class SQLiteAdapter(DBAdapter):
                    statement before it reaches the DB (SPEC §9).
     """
 
+    dialect = "sqlite"
+
     def __init__(self, database: str, *, read_only: bool = False) -> None:
         self._database = database
         self._read_only = read_only

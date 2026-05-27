@@ -18,6 +18,8 @@ class PostgresAdapter(DBAdapter):
     this adapter must be ``def`` (Starlette runs them in a threadpool).
     """
 
+    dialect = "postgres"
+
     def __init__(self, profile: ConnectionProfile) -> None:
         self._profile = profile
         # TODO(phase-1): initialise connection pool (max_size=5)

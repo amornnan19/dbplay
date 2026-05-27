@@ -52,6 +52,10 @@ class DBAdapter(ABC):
         quoting. Never skip the whitelist check in the row editor / browse.
     """
 
+    #: sqlglot dialect name for this engine (e.g. "sqlite", "postgres", "mysql").
+    #: Subclasses must set this as a class attribute.
+    dialect: str = ""
+
     @abstractmethod
     def test_connection(self) -> bool:
         """Verify the connection is live.

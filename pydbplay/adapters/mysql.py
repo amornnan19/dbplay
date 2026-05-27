@@ -14,6 +14,8 @@ from pydbplay.schemas.schema import TableInfo, TableSchema
 class MySQLAdapter(DBAdapter):
     """DBAdapter implementation for MySQL / MariaDB via PyMySQL (sync)."""
 
+    dialect = "mysql"
+
     def __init__(self, profile: ConnectionProfile) -> None:
         self._profile = profile
         # TODO(phase-1): initialise connection pool (max_size=5)
