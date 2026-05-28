@@ -1,8 +1,94 @@
+{% macro export_toolbar(conn_id, executed_sql, row_count) %}
+  {% if row_count > 0 and executed_sql %}
+  <span class="ml-auto flex items-center gap-1">
+    <span class="text-gray-400 dark:text-gray-500">Export:</span>
+    <button
+      type="button"
+      class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+      data-conn-id="{{ conn_id }}"
+      data-sql="{{ executed_sql }}"
+      data-fmt="csv"
+      onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+    >CSV</button>
+    <button
+      type="button"
+      class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+      data-conn-id="{{ conn_id }}"
+      data-sql="{{ executed_sql }}"
+      data-fmt="json"
+      onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+    >JSON</button>
+    <button
+      type="button"
+      class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+      data-conn-id="{{ conn_id }}"
+      data-sql="{{ executed_sql }}"
+      data-fmt="sql"
+      onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
+    >SQL</button>
+  </span>
+  {% endif %}
+{% endmacro %}
+
 {% if error %}
 <div class="rounded p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
   <span class="font-semibold">Query error:</span> {{ error }}
 </div>
 {% elif result %}
+  {% if result.is_explain and result.columns|length == 1 %}
+  {# Single-column EXPLAIN plan (Postgres/SQLite) — render as monospace pre block #}
+  <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-gray-500 dark:text-gray-400">
+    <span class="inline-block text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">EXPLAIN</span>
+    <span>{{ result.row_count }} line{% if result.row_count != 1 %}s{% endif %}</span>
+    <span>{{ result.duration_ms }}ms</span>
+    {# Export toolbar — available for EXPLAIN plans too #}
+    {{ export_toolbar(conn_id, executed_sql, result.row_count) }}
+  </div>
+  <pre class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-xs leading-relaxed px-4 py-3 overflow-x-auto whitespace-pre rounded border border-gray-200 dark:border-gray-700">{% for row in result.rows %}{{ row[0] }}
+{% endfor %}</pre>
+  {% elif result.is_explain %}
+  {# Multi-column EXPLAIN plan (MySQL EXPLAIN) — show badge then the regular grid #}
+  <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-gray-500 dark:text-gray-400">
+    <span class="inline-block text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">EXPLAIN</span>
+    <span>{{ result.row_count }} row{% if result.row_count != 1 %}s{% endif %}</span>
+    <span>{{ result.duration_ms }}ms</span>
+    {# Export toolbar #}
+    {{ export_toolbar(conn_id, executed_sql, result.row_count) }}
+  </div>
+  {% if result.row_count == 0 %}
+  <p class="text-sm text-gray-400 dark:text-gray-500">0 rows returned.</p>
+  {% else %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm border-collapse">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          {% for col in result.columns %}
+          <th class="px-3 py-1.5 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0">
+            {{ col }}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for row in result.rows %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          {% for cell in row %}
+          <td class="px-3 py-1.5 text-gray-800 dark:text-gray-200 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0 font-mono text-xs">
+            {% if cell is none %}
+            <span class="text-gray-400 dark:text-gray-500 italic">NULL</span>
+            {% else %}
+            {{ cell }}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% else %}
+  {# Regular query result #}
   {# Metadata row #}
   <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-gray-500 dark:text-gray-400">
     <span>{{ result.row_count }} row{% if result.row_count != 1 %}s{% endif %}</span>
@@ -16,35 +102,7 @@
     </span>
     {% endif %}
     {# Export toolbar — only shown when there are rows to export #}
-    {% if result.columns and result.row_count > 0 and executed_sql %}
-    <span class="ml-auto flex items-center gap-1">
-      <span class="text-gray-400 dark:text-gray-500">Export:</span>
-      <button
-        type="button"
-        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-        data-conn-id="{{ conn_id }}"
-        data-sql="{{ executed_sql }}"
-        data-fmt="csv"
-        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
-      >CSV</button>
-      <button
-        type="button"
-        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-        data-conn-id="{{ conn_id }}"
-        data-sql="{{ executed_sql }}"
-        data-fmt="json"
-        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
-      >JSON</button>
-      <button
-        type="button"
-        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-        data-conn-id="{{ conn_id }}"
-        data-sql="{{ executed_sql }}"
-        data-fmt="sql"
-        onclick="window.__exportDownload(this.dataset.connId, {sql: this.dataset.sql, format: this.dataset.fmt})"
-      >SQL</button>
-    </span>
-    {% endif %}
+    {{ export_toolbar(conn_id, executed_sql, result.row_count) }}
   </div>
 
   {% if result.columns %}
@@ -89,6 +147,7 @@
         {{ result.row_count }} rows affected.
       {% endif %}
     </p>
+  {% endif %}
   {% endif %}
 {% else %}
 <p class="text-sm text-gray-400 dark:text-gray-500">Run a query to see results.</p>

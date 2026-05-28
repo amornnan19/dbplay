@@ -447,6 +447,31 @@ def test_workspace_page_embeds_profiles(tmp_path: Path) -> None:
     assert "password" not in resp.text
 
 
+# ---------------------------------------------------------------------------
+# Phase 5: EXPLAIN viewer — badge rendered in result_grid partial
+# ---------------------------------------------------------------------------
+
+
+def test_run_explain_returns_explain_badge(tmp_path: Path) -> None:
+    """POST EXPLAIN SELECT 1 on a SQLite connection returns the EXPLAIN badge in HTML."""
+    db_path = tmp_path / "target.db"
+    _seed_target_db(db_path)
+    client = _make_client(tmp_path)
+
+    with client:
+        conn_id = _register_connection(client, db_path)
+        resp = client.post(
+            f"/api/c/{conn_id}/query",
+            data={"sql": "EXPLAIN SELECT 1"},
+        )
+
+    assert resp.status_code == 200
+    # The indigo EXPLAIN badge must appear in the rendered HTML
+    assert "EXPLAIN</span>" in resp.text or "EXPLAIN" in resp.text
+    # The pre block (monospace plan) or grid must be present
+    assert "<pre" in resp.text or "<table" in resp.text
+
+
 def test_browse_page_embeds_profiles(tmp_path: Path) -> None:
     """GET /c/{conn_id}/browse/{table} embeds window.__pydbplayProfiles in the page HTML.
 

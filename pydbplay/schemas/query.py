@@ -59,6 +59,9 @@ class QueryRunResult(BaseModel):
     is_destructive: bool = False
     """True when the original SQL is DELETE / UPDATE / DROP / TRUNCATE."""
 
+    is_explain: bool = False
+    """True when the original SQL is an EXPLAIN / EXPLAIN ANALYZE / EXPLAIN QUERY PLAN statement."""
+
 
 class QueryRequest(BaseModel):
     """Request body for POST /api/c/{conn_id}/query."""

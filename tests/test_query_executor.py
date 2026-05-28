@@ -465,3 +465,38 @@ def test_query_executor_read_only_update_raises_query_error_with_cause(
         assert isinstance(exc_info.value.__cause__, ReadOnlyViolationError)
     finally:
         cm.close_all()
+
+
+# ---------------------------------------------------------------------------
+# EXPLAIN flag plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_query_executor_explain_sets_is_explain(tmp_path: Path) -> None:
+    """EXPLAIN SELECT * FROM items returns is_explain=True and no LIMIT injected."""
+    target = tmp_path / "target.db"
+    _seed_target_db(target, rows=5)
+    executor, conn_id, _repo, cm = _make_executor(tmp_path, target)
+
+    try:
+        result = executor.run(conn_id, "EXPLAIN SELECT * FROM items", limit=1000)
+
+        assert result.is_explain is True
+        # LIMIT must NOT be appended to an EXPLAIN statement
+        assert "LIMIT" not in result.effective_sql.upper()
+        assert result.limit_applied is False
+    finally:
+        cm.close_all()
+
+
+def test_query_executor_select_is_not_explain(tmp_path: Path) -> None:
+    """Plain SELECT 1 returns is_explain=False."""
+    target = tmp_path / "target.db"
+    _seed_target_db(target, rows=5)
+    executor, conn_id, _repo, cm = _make_executor(tmp_path, target)
+
+    try:
+        result = executor.run(conn_id, "SELECT 1")
+        assert result.is_explain is False
+    finally:
+        cm.close_all()

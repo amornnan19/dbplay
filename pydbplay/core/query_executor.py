@@ -9,7 +9,7 @@ import sqlglot.expressions as exp
 
 from pydbplay.adapters.base import DBAdapter
 from pydbplay.core.connection_manager import ConnectionManager
-from pydbplay.core.sql_validator import validate
+from pydbplay.core.sql_validator import is_explain_statement, validate
 from pydbplay.db.models import QueryHistory
 from pydbplay.db.repository import Repository
 from pydbplay.schemas.query import QueryRunResult
@@ -85,6 +85,10 @@ def _apply_auto_limit(sql: str, dialect: str, limit: int) -> tuple[str, bool]:
     stmt = statements[0]
 
     # Only touch SELECT / UNION / INTERSECT / EXCEPT at the outer level.
+    # Explicitly exclude EXPLAIN statements (Command nodes) — Postgres/MySQL
+    # EXPLAIN do not accept a trailing LIMIT clause.
+    if isinstance(stmt, exp.Command):
+        return sql, False
     if not isinstance(stmt, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
         return sql, False
 
@@ -163,9 +167,10 @@ class QueryExecutor:
         # Step 2: One-statement guard.
         self._reject_multi_statement(sql, adapter.dialect)
 
-        # Step 3: Determine is_destructive from the original SQL.
+        # Step 3: Determine is_destructive and is_explain from the original SQL.
         validation = validate(sql, dialect=adapter.dialect)
         is_destructive = validation.is_destructive
+        is_explain = is_explain_statement(sql, adapter.dialect)
 
         # Step 4: Auto-LIMIT injection.
         if enforce_limit:
@@ -212,6 +217,7 @@ class QueryExecutor:
             limit_applied=limit_applied,
             truncated_possible=truncated_possible,
             is_destructive=is_destructive,
+            is_explain=is_explain,
         )
 
     # ------------------------------------------------------------------

@@ -10,6 +10,54 @@ import sqlglot
 import sqlglot.errors
 import sqlglot.expressions as exp
 
+# ---------------------------------------------------------------------------
+# EXPLAIN detection
+# ---------------------------------------------------------------------------
+
+# Regex fallback: matches EXPLAIN at the start of SQL after stripping leading
+# single-line (--) and multi-line (/* */) comments.
+_LEADING_COMMENT_RE = re.compile(
+    r"(?:--[^\n]*\n|/\*.*?\*/\s*)*",
+    re.DOTALL,
+)
+_EXPLAIN_KEYWORD_RE = re.compile(r"EXPLAIN\b", re.IGNORECASE)
+
+
+def is_explain_statement(sql: str, dialect: str) -> bool:
+    """Return True iff *sql* is an EXPLAIN / EXPLAIN ANALYZE / EXPLAIN QUERY PLAN statement.
+
+    Uses ``sqlglot.parse_one`` first: EXPLAIN appears as ``sqlglot.exp.Command``
+    with ``this == "EXPLAIN"``.  Falls back to a regex that strips leading SQL
+    comments and checks for the EXPLAIN keyword so that malformed SQL (no body,
+    parse error) is still classified correctly.
+
+    Args:
+        sql: The SQL string to inspect.
+        dialect: sqlglot dialect name (``"postgres"``, ``"mysql"``, ``"sqlite"``).
+
+    Returns:
+        True when the statement is an EXPLAIN variant; False otherwise.
+    """
+    effective_dialect: str | None = dialect if dialect else None
+    try:
+        parsed = sqlglot.parse_one(
+            sql,
+            dialect=effective_dialect,
+            error_level=sqlglot.errors.ErrorLevel.RAISE,
+        )
+        if parsed is not None and isinstance(parsed, exp.Command):
+            return str(parsed.this).upper() == "EXPLAIN"
+    except sqlglot.errors.SqlglotError:
+        pass
+
+    # Regex fallback — strip leading block/line comments then check for EXPLAIN.
+    stripped = sql.strip()
+    # Remove all leading comments iteratively (the regex matches zero or more).
+    comment_match = _LEADING_COMMENT_RE.match(stripped)
+    after_comments = stripped[comment_match.end() :] if comment_match else stripped
+    return bool(_EXPLAIN_KEYWORD_RE.match(after_comments.lstrip()))
+
+
 # Statement keys that are considered destructive (require confirm dialog).
 # "truncatetable" is the sqlglot key for TRUNCATE TABLE (not "truncate").
 _DESTRUCTIVE_KEYS: frozenset[str] = frozenset({"delete", "update", "drop", "truncatetable"})
@@ -71,7 +119,7 @@ def _tree_confirms_read_only(sql: str, dialect: str) -> bool:
             dialect=effective_dialect,
             error_level=sqlglot.errors.ErrorLevel.RAISE,
         )
-    except (sqlglot.errors.ParseError, Exception):
+    except sqlglot.errors.SqlglotError:
         # Fail closed: unparseable SQL is not allowed through in read-only mode.
         return False
 
