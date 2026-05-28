@@ -48,3 +48,7 @@ secret.key
 
 # Logs
 *.log
+
+# Project docs kept local-only (not committed)
+SPEC.md
+CLAUDE.md
