@@ -1,19 +1,19 @@
 {% if saved %}
-<ul class="divide-y divide-gray-100 text-xs">
+<ul class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
   {% for sq in saved %}
-  <li class="px-2 py-1.5 flex items-start gap-2 hover:bg-gray-50 group"
+  <li class="px-2 py-1.5 flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 group"
       data-sql="{{ sq.sql }}"
       onclick="window.__loadHistorySQL && window.__loadHistorySQL(this.dataset.sql)"
       style="cursor: pointer;">
     <div class="min-w-0 flex-1">
-      <div class="font-medium text-gray-700 truncate" title="{{ sq.name }}">{{ sq.name }}</div>
-      <div class="font-mono text-gray-400 truncate mt-0.5" title="{{ sq.sql }}">
+      <div class="font-medium text-gray-700 dark:text-gray-300 truncate" title="{{ sq.name }}">{{ sq.name }}</div>
+      <div class="font-mono text-gray-400 dark:text-gray-500 truncate mt-0.5" title="{{ sq.sql }}">
         {{ sq.sql[:60] }}{% if sq.sql|length > 60 %}…{% endif %}
       </div>
     </div>
     <button
       type="button"
-      class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity mt-0.5"
+      class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-opacity mt-0.5"
       title="Delete saved query"
       hx-delete="/api/c/{{ conn_id }}/saved-queries/{{ sq.id }}"
       hx-confirm="Delete saved query &quot;{{ sq.name }}&quot;?"
@@ -29,5 +29,5 @@
   {% endfor %}
 </ul>
 {% else %}
-<p class="text-xs text-gray-400 px-2 py-2">No saved queries.</p>
+<p class="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">No saved queries.</p>
 {% endif %}

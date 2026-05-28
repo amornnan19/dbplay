@@ -11,13 +11,13 @@
 
   {# ── Header bar ────────────────────────────────────────────────────────── #}
   <div class="flex items-center gap-3 mb-4">
-    <a href="/c/{{ conn_id }}" class="text-xs text-gray-400 hover:text-gray-600">← Query editor</a>
-    <span class="text-gray-300">/</span>
-    <span class="font-semibold text-gray-800">{{ conn.name }}</span>
-    <span class="text-gray-300">/</span>
-    <span class="font-mono text-indigo-700 font-semibold">{{ table }}</span>
+    <a href="/c/{{ conn_id }}" class="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">← Query editor</a>
+    <span class="text-gray-300 dark:text-gray-700">/</span>
+    <span class="font-semibold text-gray-800 dark:text-gray-200">{{ conn.name }}</span>
+    <span class="text-gray-300 dark:text-gray-700">/</span>
+    <span class="font-mono text-indigo-700 dark:text-indigo-400 font-semibold">{{ table }}</span>
     {% if conn.read_only %}
-    <span class="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700 font-medium ml-2">read-only</span>
+    <span class="px-1.5 py-0.5 text-xs rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-medium ml-2">read-only</span>
     {% endif %}
   </div>
 
@@ -27,7 +27,7 @@
     hx-get="/api/c/{{ conn_id }}/rows/{{ table }}"
     hx-trigger="load"
     hx-swap="innerHTML"
-    class="text-sm text-gray-400"
+    class="text-sm text-gray-400 dark:text-gray-500"
   >
     Loading rows…
   </div>

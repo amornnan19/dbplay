@@ -1,27 +1,27 @@
 {% if error %}
-<div class="rounded p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
+<div class="rounded p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
   <span class="font-semibold">Query error:</span> {{ error }}
 </div>
 {% elif result %}
   {# Metadata row #}
-  <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-gray-500">
+  <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-gray-500 dark:text-gray-400">
     <span>{{ result.row_count }} row{% if result.row_count != 1 %}s{% endif %}</span>
     <span>{{ result.duration_ms }}ms</span>
     {% if result.is_destructive %}
-    <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">destructive</span>
+    <span class="px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 rounded font-medium">destructive</span>
     {% endif %}
     {% if result.limit_applied or result.truncated_possible %}
-    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
+    <span class="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded">
       Results limited to {{ result.row_count }} rows — add your own LIMIT to override
     </span>
     {% endif %}
     {# Export toolbar — only shown when there are rows to export #}
     {% if result.columns and result.row_count > 0 and executed_sql %}
     <span class="ml-auto flex items-center gap-1">
-      <span class="text-gray-400">Export:</span>
+      <span class="text-gray-400 dark:text-gray-500">Export:</span>
       <button
         type="button"
-        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
         data-conn-id="{{ conn_id }}"
         data-sql="{{ executed_sql }}"
         data-fmt="csv"
@@ -29,7 +29,7 @@
       >CSV</button>
       <button
         type="button"
-        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
         data-conn-id="{{ conn_id }}"
         data-sql="{{ executed_sql }}"
         data-fmt="json"
@@ -37,7 +37,7 @@
       >JSON</button>
       <button
         type="button"
-        class="px-2 py-0.5 border border-gray-200 rounded hover:bg-gray-100 text-gray-600"
+        class="px-2 py-0.5 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
         data-conn-id="{{ conn_id }}"
         data-sql="{{ executed_sql }}"
         data-fmt="sql"
@@ -49,26 +49,26 @@
 
   {% if result.columns %}
     {% if result.row_count == 0 %}
-    <p class="text-sm text-gray-400">0 rows returned.</p>
+    <p class="text-sm text-gray-400 dark:text-gray-500">0 rows returned.</p>
     {% else %}
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm border-collapse">
         <thead>
-          <tr class="bg-gray-50 border-b border-gray-200">
+          <tr class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             {% for col in result.columns %}
-            <th class="px-3 py-1.5 text-left font-medium text-gray-600 whitespace-nowrap border-r border-gray-200 last:border-r-0">
+            <th class="px-3 py-1.5 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0">
               {{ col }}
             </th>
             {% endfor %}
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
           {% for row in result.rows %}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
             {% for cell in row %}
-            <td class="px-3 py-1.5 text-gray-800 whitespace-nowrap border-r border-gray-200 last:border-r-0 font-mono text-xs">
+            <td class="px-3 py-1.5 text-gray-800 dark:text-gray-200 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0 font-mono text-xs">
               {% if cell is none %}
-              <span class="text-gray-400 italic">NULL</span>
+              <span class="text-gray-400 dark:text-gray-500 italic">NULL</span>
               {% else %}
               {{ cell }}
               {% endif %}
@@ -82,7 +82,7 @@
     {% endif %}
   {% else %}
     {# DML / DDL with no columns — show rows affected #}
-    <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+    <p class="text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded px-3 py-2">
       {% if result.row_count == 1 %}
         1 row affected.
       {% else %}
@@ -91,5 +91,5 @@
     </p>
   {% endif %}
 {% else %}
-<p class="text-sm text-gray-400">Run a query to see results.</p>
+<p class="text-sm text-gray-400 dark:text-gray-500">Run a query to see results.</p>
 {% endif %}

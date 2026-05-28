@@ -6,12 +6,12 @@
   hx-trigger="load"
   hx-swap="innerHTML"
 >
-  <span class="text-xs text-gray-400 px-2 py-2">Loading tables…</span>
+  <span class="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">Loading tables…</span>
 </div>
 {% elif schemas %}
 <div class="px-2 pb-2">
   <select
-    class="w-full text-xs border border-gray-200 rounded px-1 py-1 bg-white"
+    class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-1 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
     hx-get="/api/c/{{ conn_id }}/tables"
     hx-target="#schema-tables"
     hx-swap="innerHTML"
@@ -24,8 +24,8 @@
   </select>
 </div>
 <div id="schema-tables">
-  <span class="text-xs text-gray-400 px-2 py-2">Select a schema above.</span>
+  <span class="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">Select a schema above.</span>
 </div>
 {% else %}
-<p class="text-xs text-gray-400 px-2 py-2">No schemas found.</p>
+<p class="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">No schemas found.</p>
 {% endif %}
