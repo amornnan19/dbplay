@@ -22,6 +22,25 @@ const DIALECTS = {
   sqlite: SQLite,
 };
 
+const SQL_MAX_BYTES = 256000;
+
+// Debounced SQL persistence to localStorage per tab.
+let _sqlPersistTimer = null;
+function _scheduleSqlPersist(sql) {
+  clearTimeout(_sqlPersistTimer);
+  _sqlPersistTimer = setTimeout(() => {
+    const connId = window.__pydbplayActiveConnId;
+    if (connId == null) return;
+    if (sql.length > SQL_MAX_BYTES) return; // skip oversized; don't evict previous
+    const key = "pydbplay:tab:" + connId + ":sql";
+    try {
+      localStorage.setItem(key, sql);
+    } catch (_) {
+      // QuotaExceededError — degrade silently
+    }
+  }, 300);
+}
+
 /**
  * Initialize a CodeMirror 6 SQL editor inside #sql-editor.
  *
@@ -40,8 +59,20 @@ window.initEditor = function (dialect, initialValue) {
 
   const dialectDef = DIALECTS[dialect] ?? SQLite;
 
+  // Prefer persisted SQL from localStorage over initialValue
+  const connId = window.__pydbplayActiveConnId;
+  let startDoc = initialValue || "";
+  if (connId != null) {
+    try {
+      const stored = localStorage.getItem("pydbplay:tab:" + connId + ":sql");
+      if (stored && stored.length > 0) {
+        startDoc = stored;
+      }
+    } catch (_) {}
+  }
+
   const view = new EditorView({
-    doc: initialValue || "",
+    doc: startDoc,
     extensions: [
       basicSetup,
       sql({
@@ -52,6 +83,12 @@ window.initEditor = function (dialect, initialValue) {
       EditorView.theme({
         "&": { height: "200px" },
         ".cm-scroller": { overflow: "auto" },
+      }),
+      // Persist SQL to localStorage on each change (debounced 300ms).
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          _scheduleSqlPersist(update.state.doc.toString());
+        }
       }),
       // Mod-Enter (⌘+Enter / Ctrl+Enter) → submit the parent form.
       // Uses EditorView.domEventHandlers (not a keymap extension) so we avoid a

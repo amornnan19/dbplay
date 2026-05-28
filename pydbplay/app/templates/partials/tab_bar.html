@@ -1,0 +1,63 @@
+<nav
+  x-data
+  class="flex items-center gap-1 flex-1 overflow-x-auto min-w-0"
+>
+  <!-- Open tabs -->
+  <template x-for="id in $store.tabs.order" :key="id">
+    <div class="flex items-center flex-shrink-0">
+      <a
+        :href="'/c/' + id"
+        :class="$store.tabs.active === id
+          ? 'bg-indigo-50 ring-1 ring-indigo-300 text-indigo-800'
+          : 'bg-white text-gray-700 hover:bg-gray-50'"
+        class="flex items-center gap-1 px-3 py-1 text-sm rounded border border-gray-200 max-w-[160px]"
+        :style="'border-left: 3px solid ' + (($store.profiles.byId[id] || {}).color || '#9ca3af')"
+        @click="$store.tabs.activate(id)"
+      >
+        <span class="truncate" x-text="($store.profiles.byId[id] || {}).name || ('Connection #' + id)"></span>
+      </a>
+      <button
+        type="button"
+        class="ml-0.5 flex-shrink-0 w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+        :aria-label="'Close ' + (($store.profiles.byId[id] || {}).name || ('Connection #' + id))"
+        @click.prevent.stop="$store.tabs.close(id)"
+      >&times;</button>
+    </div>
+  </template>
+
+  <!-- "+" open new connection dropdown -->
+  <div class="relative flex-shrink-0" x-data="{ open: false }">
+    <button
+      type="button"
+      class="px-2 py-1 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded border border-transparent hover:border-gray-200"
+      @click="open = !open"
+      @keydown.escape="open = false"
+      aria-label="Open connection"
+    >+</button>
+
+    <div
+      x-show="open"
+      x-cloak
+      @click.outside="open = false"
+      class="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded shadow-md min-w-[200px] max-h-64 overflow-y-auto"
+    >
+      <template x-if="$store.profiles.all.length === 0">
+        <p class="px-3 py-2 text-sm text-gray-400">No connections yet.</p>
+      </template>
+      <template x-for="profile in $store.profiles.all" :key="profile.id">
+        <a
+          :href="'/c/' + profile.id"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          @click="open = false"
+        >
+          <span
+            class="w-2 h-2 rounded-full flex-shrink-0"
+            :style="'background:' + (profile.color || '#9ca3af')"
+          ></span>
+          <span class="truncate" x-text="profile.name"></span>
+          <span class="ml-auto text-xs text-gray-400 flex-shrink-0" x-text="profile.engine"></span>
+        </a>
+      </template>
+    </div>
+  </div>
+</nav>

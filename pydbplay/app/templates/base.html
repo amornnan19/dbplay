@@ -14,6 +14,16 @@
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 
+  <!-- Phase-4: embed connection profiles + active conn for tab bar -->
+  <script>
+    window.__pydbplayProfiles = {{ profiles | tojson if profiles is defined else '[]' }};
+    window.__pydbplayActiveConnId = {{ conn_id | tojson if conn_id is defined else 'null' }};
+  </script>
+
+  <!-- Phase-4: tabs.js MUST load before alpinejs so its alpine:init listener
+       is attached before Alpine fires the event. defer preserves source order. -->
+  <script src="/static/js/tabs.js" defer></script>
+
   <!-- Alpine.js -->
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -26,10 +36,10 @@
 
   <!-- Top nav -->
   <header class="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4">
-    <a href="/connections" class="font-semibold text-indigo-600 hover:text-indigo-800">
+    <a href="/connections" class="font-semibold text-indigo-600 hover:text-indigo-800 flex-shrink-0">
       pydbplay
     </a>
-    <!-- TODO(phase-4): Tab bar for multi-connection -->
+    {% include "partials/tab_bar.html" %}
   </header>
 
   <!-- Main content -->

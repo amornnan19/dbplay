@@ -413,3 +413,62 @@ def test_run_query_sets_hx_trigger_for_history_refresh(tmp_path: Path) -> None:
         bad = client.post(f"/api/c/{conn_id}/query", data={"sql": "SELECT * FROM missing_table"})
         assert bad.status_code == 200
         assert bad.headers.get("HX-Trigger") == "query-ran"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: workspace pages embed __pydbplayProfiles
+# ---------------------------------------------------------------------------
+
+
+def test_workspace_page_embeds_profiles(tmp_path: Path) -> None:
+    """GET /c/{conn_id} embeds window.__pydbplayProfiles in the page HTML.
+
+    Asserts that:
+    - The profiles bootstrap variable is present.
+    - The profile name and active conn_id are embedded.
+    - No sensitive fields (password_encrypted / password) leak into the HTML.
+    """
+    db_path = tmp_path / "target.db"
+    _seed_target_db(db_path)
+    client = _make_client(tmp_path)
+
+    with client:
+        conn_id = _register_connection(client, db_path)
+        resp = client.get(f"/c/{conn_id}")
+
+    assert resp.status_code == 200
+    assert "window.__pydbplayProfiles" in resp.text
+    # Profile name must appear in the embedded JSON
+    assert '"Test SQLite"' in resp.text
+    # Active connection id must be embedded
+    assert f"window.__pydbplayActiveConnId = {conn_id}" in resp.text
+    # Sensitive fields must NOT appear in the page
+    assert "password_encrypted" not in resp.text
+    assert "password" not in resp.text
+
+
+def test_browse_page_embeds_profiles(tmp_path: Path) -> None:
+    """GET /c/{conn_id}/browse/{table} embeds window.__pydbplayProfiles in the page HTML.
+
+    Asserts that:
+    - The profiles bootstrap variable is present.
+    - The profile name and active conn_id are embedded.
+    - No sensitive fields (password_encrypted / password) leak into the HTML.
+    """
+    db_path = tmp_path / "target.db"
+    _seed_target_db(db_path)
+    client = _make_client(tmp_path)
+
+    with client:
+        conn_id = _register_connection(client, db_path)
+        resp = client.get(f"/c/{conn_id}/browse/things")
+
+    assert resp.status_code == 200
+    assert "window.__pydbplayProfiles" in resp.text
+    # Profile name must appear in the embedded JSON
+    assert '"Test SQLite"' in resp.text
+    # Active connection id must be embedded
+    assert f"window.__pydbplayActiveConnId = {conn_id}" in resp.text
+    # Sensitive fields must NOT appear in the page
+    assert "password_encrypted" not in resp.text
+    assert "password" not in resp.text

@@ -418,3 +418,38 @@ def test_connection_name_xss_is_escaped_in_list(tmp_path: Path) -> None:
     assert list_resp.status_code == 200
     assert "&lt;script&gt;" in list_resp.text
     assert "<script>alert(1)</script>" not in list_resp.text
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: connections page embeds __pydbplayProfiles
+# ---------------------------------------------------------------------------
+
+
+def test_connections_page_embeds_profiles(tmp_path: Path) -> None:
+    """GET /connections embeds window.__pydbplayProfiles in the page HTML.
+
+    Asserts that:
+    - The profiles bootstrap variable is present.
+    - The profile name appears in the embedded JSON when a profile exists.
+    - No sensitive fields (password_encrypted / password) leak into the HTML.
+    """
+    client = _make_client(tmp_path)
+    db_path = tmp_path / "mydb.sqlite"
+    _seed_sqlite(db_path)
+
+    with client:
+        client.post(
+            "/api/connections",
+            data={"name": "Conn For Embed", "engine": "sqlite", "database": str(db_path)},
+        )
+        resp = client.get("/connections")
+
+    assert resp.status_code == 200
+    assert "window.__pydbplayProfiles" in resp.text
+    # Profile name must appear in the embedded JSON
+    assert '"Conn For Embed"' in resp.text
+    # Sensitive field key must NOT appear in the embedded profiles JSON.
+    # (The connections page itself has a "Password" form label — that is fine.
+    # The critical regression is that password_encrypted must never be a key
+    # in the __pydbplayProfiles bootstrap data.)
+    assert "password_encrypted" not in resp.text

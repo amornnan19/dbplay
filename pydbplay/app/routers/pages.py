@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from pydbplay.app.dependencies import RepositoryDep
+from pydbplay.db.repository import Repository
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
@@ -21,13 +22,32 @@ def root_redirect() -> RedirectResponse:
     return RedirectResponse(url="/connections", status_code=302)
 
 
+def _profiles_as_json(repository: Repository) -> list[dict[str, object]]:
+    """Return list_connections() serialized to plain dicts (JSON-safe for tojson).
+
+    Only the fields needed by the tab bar are included — sensitive fields such
+    as password_encrypted, host, port, username, and database are intentionally
+    omitted.
+    """
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "engine": p.engine,
+            "color": p.color,
+            "last_used_at": p.last_used_at.isoformat() if p.last_used_at else None,
+        }
+        for p in repository.list_connections()
+    ]
+
+
 @router.get("/connections", response_class=HTMLResponse)
-def connections_page(request: Request) -> HTMLResponse:
+def connections_page(request: Request, repository: RepositoryDep) -> HTMLResponse:
     """Render the connection-list page."""
     return _templates.TemplateResponse(
         request,
         "connections.html",
-        {"connections": []},  # TODO(phase-1): load real connection profiles
+        {"profiles": _profiles_as_json(repository)},
     )
 
 
@@ -45,7 +65,12 @@ def workspace_page(conn_id: int, request: Request, repository: RepositoryDep) ->
     return _templates.TemplateResponse(
         request,
         "query.html",
-        {"conn": conn, "conn_id": conn_id, "dialect": conn.engine},
+        {
+            "conn": conn,
+            "conn_id": conn_id,
+            "dialect": conn.engine,
+            "profiles": _profiles_as_json(repository),
+        },
     )
 
 
@@ -63,7 +88,12 @@ def workspace_query_page(conn_id: int, request: Request, repository: RepositoryD
     return _templates.TemplateResponse(
         request,
         "query.html",
-        {"conn": conn, "conn_id": conn_id, "dialect": conn.engine},
+        {
+            "conn": conn,
+            "conn_id": conn_id,
+            "dialect": conn.engine,
+            "profiles": _profiles_as_json(repository),
+        },
     )
 
 
@@ -83,5 +113,11 @@ def browse_page(
     return _templates.TemplateResponse(
         request,
         "browse.html",
-        {"conn": conn, "conn_id": conn_id, "table": table, "conn_name": conn.name},
+        {
+            "conn": conn,
+            "conn_id": conn_id,
+            "table": table,
+            "conn_name": conn.name,
+            "profiles": _profiles_as_json(repository),
+        },
     )
