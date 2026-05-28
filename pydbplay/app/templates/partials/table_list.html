@@ -1,7 +1,7 @@
 {% if table_rows %}
 <ul class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
   {% for row in table_rows %}
-  <li class="group">
+  <li class="group" x-data="{ open: false }">
     <div
       class="flex items-center gap-1 px-2 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer"
       data-select="{{ row.select_sql }}"
@@ -26,16 +26,18 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
         </svg>
       </a>
-      {# Structure toggle button #}
+      {# Structure toggle button — HTMX fetches once, Alpine toggles visibility #}
       <button
         type="button"
-        class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-opacity"
-        title="Show structure"
+        class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        :class="open ? 'text-indigo-600 dark:text-indigo-400 opacity-100' : 'text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400'"
+        :title="open ? 'Hide structure' : 'Show structure'"
+        @click="open = !open; event.stopPropagation()"
         hx-get="/api/c/{{ conn_id }}/tables/{{ row.info.name }}{% if schema %}?schema={{ schema }}{% endif %}"
         hx-target="#structure-{{ loop.index }}"
         hx-swap="innerHTML"
+        hx-trigger="click once"
         hx-indicator="#structure-loading-{{ loop.index }}"
-        onclick="event.stopPropagation()"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
@@ -43,7 +45,12 @@
       </button>
     </div>
     {# Inline structure panel — hidden until toggle #}
-    <div id="structure-{{ loop.index }}" class="bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+    <div
+      id="structure-{{ loop.index }}"
+      x-show="open"
+      x-cloak
+      class="bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
+    >
       <span id="structure-loading-{{ loop.index }}" class="htmx-indicator text-xs text-gray-400 dark:text-gray-500 px-2 py-1">Loading…</span>
     </div>
   </li>

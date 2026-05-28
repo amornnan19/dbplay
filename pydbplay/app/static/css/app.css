@@ -13,3 +13,8 @@
 .htmx-request .htmx-indicator {
   display: inline;
 }
+
+/* Alpine.js — hide x-cloak'd elements until Alpine boots (no flash on load) */
+[x-cloak] {
+  display: none !important;
+}
